@@ -1,0 +1,12 @@
+{
+  "name": "@ayana/mock-data",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@ayana/shared-types": "*",
+    "@ayana/shared-utils": "*"
+  }
+}

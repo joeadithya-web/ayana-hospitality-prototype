@@ -1,0 +1,16 @@
+{
+  "name": "ayana-pt",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "mock-data"
+  ],
+  "scripts": {
+    "typecheck": "tsc -b --pretty"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
