@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import type { RoomCategory, RoomView } from '@ayana/shared-types';
+import type { BedType, RoomCategory, RoomView } from '@ayana/shared-types';
 import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
 import { useCurrentGuest, useHotel, useRoomsForHotelAndCategory } from '../hooks';
 
@@ -17,6 +17,8 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+const BED_LABEL: Record<string, string> = { twin: 'Twin beds', double: 'Double bed', king: 'King bed' };
+
 function defaultDate(offsetDays: number): string {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
@@ -24,7 +26,12 @@ function defaultDate(offsetDays: number): string {
 }
 
 export function Booking() {
-  const { hotelId, category, view } = useParams<{ hotelId: string; category: RoomCategory; view: RoomView }>();
+  const { hotelId, category, view, bedType } = useParams<{
+    hotelId: string;
+    category: RoomCategory;
+    view: RoomView;
+    bedType: BedType;
+  }>();
   const navigate = useNavigate();
   const hotel = useHotel(hotelId);
   const guest = useCurrentGuest();
@@ -45,25 +52,28 @@ export function Booking() {
   }, [values.checkInDate, values.checkOutDate]);
 
   const nightlyPrice = useMemo(() => {
-    if (matchingRooms.length === 0) return 0;
-    const avg = matchingRooms.reduce((sum, r) => sum + r.basePrice, 0) / matchingRooms.length;
+    const exact = matchingRooms.filter((r) => r.view === view && r.bedType === bedType);
+    const pool = exact.length > 0 ? exact : matchingRooms;
+    if (pool.length === 0) return 0;
+    const avg = pool.reduce((sum, r) => sum + r.basePrice, 0) / pool.length;
     return Math.round(avg / 100) * 100;
-  }, [matchingRooms]);
+  }, [matchingRooms, view, bedType]);
 
   const maxOccupancy = Math.max(2, ...matchingRooms.map((r) => r.maxOccupancy));
 
-  if (!hotel || !guest || !category || !view) return null;
+  if (!hotel || !guest || !category || !view || !bedType) return null;
 
   const total = nightlyPrice * nights;
   const dueNow = Math.round((total * values.paymentTier) / 100);
 
   function onSubmit(data: FormValues) {
-    if (!guest || !hotel || !category || !view) return;
+    if (!guest || !hotel || !category || !view || !bedType) return;
     const booking = createBooking({
       guestId: guest.id,
       hotelId: hotel.id,
       roomCategory: category,
       expectedView: view,
+      expectedBedType: bedType,
       checkInDate: new Date(data.checkInDate).toISOString(),
       checkOutDate: new Date(data.checkOutDate).toISOString(),
       guestsCount: data.guestsCount,
@@ -79,8 +89,16 @@ export function Booking() {
 
         <form className="flex flex-col gap-4 px-5" onSubmit={handleSubmit(onSubmit)}>
           <Card>
-            <p className="font-medium text-ink-900 capitalize">{category}</p>
-            <p className="text-xs text-ink-700/50 capitalize">{view.replace('_', ' ')} view</p>
+            <div className="flex items-start justify-between">
+              <p className="font-medium capitalize text-ink-900">{category}</p>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-ink-900">₹{nightlyPrice.toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-ink-700/40">Exclusive of Taxes</p>
+              </div>
+            </div>
+            <p className="text-xs capitalize text-ink-700/50">
+              {BED_LABEL[bedType]} · {view.replace('_', ' ')} view
+            </p>
             <p className="mt-1 text-[11px] text-ink-700/40">
               Your exact room is assigned closer to arrival — not decided at booking.
             </p>

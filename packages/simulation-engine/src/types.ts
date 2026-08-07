@@ -14,6 +14,7 @@ export interface CreateBookingInput {
   /** Category/view is what's sold at booking time — no specific room exists yet. */
   roomCategory: import('@ayana/shared-types').RoomCategory;
   expectedView: import('@ayana/shared-types').RoomView | null;
+  expectedBedType: import('@ayana/shared-types').BedType | null;
   checkInDate: string;
   checkOutDate: string;
   guestsCount: number;

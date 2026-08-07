@@ -39,7 +39,7 @@ export function TravellerRouter() {
       <Route path="search" element={<RequireAuth><Search /></RequireAuth>} />
       <Route path="hotel/:hotelId" element={<RequireAuth><HotelDetails /></RequireAuth>} />
       <Route path="hotel/:hotelId/rooms" element={<RequireAuth><RoomSelection /></RequireAuth>} />
-      <Route path="book/:hotelId/:category/:view" element={<RequireAuth><Booking /></RequireAuth>} />
+      <Route path="book/:hotelId/:category/:view/:bedType" element={<RequireAuth><Booking /></RequireAuth>} />
       <Route path="payment/:bookingId" element={<RequireAuth><Payment /></RequireAuth>} />
       <Route path="ready/:bookingId" element={<RequireAuth><ReadyToRoom /></RequireAuth>} />
       <Route path="trips" element={<RequireAuth><MyTrips /></RequireAuth>} />

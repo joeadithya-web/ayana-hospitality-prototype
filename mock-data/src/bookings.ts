@@ -67,6 +67,7 @@ function buildBooking(params: {
     hotelId: hotel.id,
     roomCategory: category,
     expectedView: view,
+    expectedBedType: room?.bedType ?? null,
     roomId: room?.id ?? null,
     allocationStatus: room ? 'allocated' : 'pending',
     checkInDate: checkIn.toISOString(),

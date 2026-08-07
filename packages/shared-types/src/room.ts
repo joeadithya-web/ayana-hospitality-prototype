@@ -20,6 +20,9 @@ export type RoomStatus =
   | 'out_of_service'
   | 'maintenance';
 
+/** Sold at booking time alongside category and view. */
+export type BedType = 'twin' | 'double' | 'king';
+
 export interface Room {
   id: string;
   hotelId: string;
@@ -28,6 +31,7 @@ export interface Room {
   section: string;
   category: RoomCategory;
   view: RoomView;
+  bedType: BedType;
   smoking: boolean;
   maxOccupancy: number;
   basePrice: number;

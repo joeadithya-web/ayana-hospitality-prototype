@@ -1,5 +1,6 @@
+import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
+import { Badge, Button, Card } from '@ayana/shared-ui';
 import { useHotel } from '../hooks';
 
 const MOCK_REVIEWS = [
@@ -44,6 +45,11 @@ export function HotelDetails() {
           <p className="mt-4 text-sm leading-relaxed text-ink-700/80">{hotel.description}</p>
 
           <section className="mt-6">
+            <h2 className="mb-2 font-display text-base font-semibold text-ink-950">Photos</h2>
+            <PhotoCarousel images={hotel.images} hotelName={hotel.name} />
+          </section>
+
+          <section className="mt-6">
             <h2 className="mb-2 font-display text-base font-semibold text-ink-950">Amenities</h2>
             <div className="flex flex-wrap gap-2">
               {hotel.amenities.map((a) => (
@@ -86,6 +92,69 @@ export function HotelDetails() {
             Select Room — from ₹{hotel.priceFloor.toLocaleString('en-IN')}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PhotoCarousel({ images, hotelName }: { images: string[]; hotelName: string }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [index, setIndex] = useState(0);
+
+  function scrollTo(next: number) {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const clamped = Math.max(0, Math.min(images.length - 1, next));
+    el.scrollTo({ left: clamped * el.clientWidth, behavior: 'smooth' });
+    setIndex(clamped);
+  }
+
+  return (
+    <div className="relative">
+      <div
+        ref={scrollerRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          setIndex(Math.round(el.scrollLeft / el.clientWidth));
+        }}
+        className="flex snap-x snap-mandatory overflow-x-auto rounded-xl2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {images.map((src, i) => (
+          <img
+            key={src}
+            src={src}
+            alt={`${hotelName} photo ${i + 1}`}
+            className="h-44 w-full flex-none snap-center object-cover"
+          />
+        ))}
+      </div>
+
+      {index > 0 && (
+        <button
+          aria-label="Previous photo"
+          onClick={() => scrollTo(index - 1)}
+          className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink-900 shadow-sm"
+        >
+          ‹
+        </button>
+      )}
+      {index < images.length - 1 && (
+        <button
+          aria-label="Next photo"
+          onClick={() => scrollTo(index + 1)}
+          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink-900 shadow-sm"
+        >
+          ›
+        </button>
+      )}
+
+      <div className="mt-2 flex justify-center gap-1.5">
+        {images.map((src, i) => (
+          <span
+            key={src}
+            className={`h-1.5 rounded-full transition-all ${i === index ? 'w-4 bg-gold-500' : 'w-1.5 bg-ink-900/20'}`}
+          />
+        ))}
       </div>
     </div>
   );

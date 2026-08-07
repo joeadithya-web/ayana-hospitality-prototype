@@ -93,6 +93,7 @@ export function withBookingCreated(
     hotelId: input.hotelId,
     roomCategory: input.roomCategory,
     expectedView: input.expectedView,
+    expectedBedType: input.expectedBedType,
     roomId: null,
     allocationStatus: 'pending',
     checkInDate: input.checkInDate,

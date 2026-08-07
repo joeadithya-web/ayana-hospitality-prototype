@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import { Badge, Card, EmptyState, PageHeader } from '@ayana/shared-ui';
-import { formatDate } from '@ayana/shared-utils';
+import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useCurrentGuest } from '../hooks';
 import { TravellerShell } from '../TravellerShell';
 
@@ -49,19 +49,45 @@ export function MyTrips() {
         {myBookings.length === 0 && (
           <EmptyState icon="🧳" title="No trips yet" description="Search hotels to plan your first AYANA journey." />
         )}
-        {myBookings.map((booking) => (
-          <Card key={booking.id} className="cursor-pointer" onClick={() => goTo(booking.id, booking.status)}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-medium text-ink-900">{hotelById.get(booking.hotelId)?.name}</p>
-                <p className="text-xs text-ink-700/50">
-                  {formatDate(booking.checkInDate)} — {formatDate(booking.checkOutDate)}
-                </p>
+        {myBookings.map((booking) => {
+          const nights = Math.max(
+            1,
+            Math.round(
+              (new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / 86_400_000,
+            ),
+          );
+          const balanceDue = Math.max(0, booking.totalAmount - booking.amountPaid);
+          const upcoming = booking.status === 'confirmed' || booking.status === 'pending_payment';
+
+          return (
+            <Card key={booking.id} className="cursor-pointer" onClick={() => goTo(booking.id, booking.status)}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-medium text-ink-900">{hotelById.get(booking.hotelId)?.name}</p>
+                  <p className="text-xs text-ink-700/50">
+                    {formatDate(booking.checkInDate)} — {formatDate(booking.checkOutDate)} · {nights} night
+                    {nights === 1 ? '' : 's'}
+                  </p>
+                </div>
+                <Badge tone={STATUS_TONE[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
               </div>
-              <Badge tone={STATUS_TONE[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
-            </div>
-          </Card>
-        ))}
+
+              {upcoming && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-ink-900/10 pt-2.5">
+                  <Badge tone="neutral">
+                    <span className="capitalize">{booking.roomCategory}</span>
+                  </Badge>
+                  {booking.readyToRoom.qrCode ? (
+                    <Badge tone="success">Key / QR ready</Badge>
+                  ) : (
+                    <Badge tone="warning">Key not issued yet</Badge>
+                  )}
+                  {balanceDue > 0 && <Badge tone="warning">{formatINR(balanceDue)} due at check-in</Badge>}
+                </div>
+              )}
+            </Card>
+          );
+        })}
       </div>
     </TravellerShell>
   );

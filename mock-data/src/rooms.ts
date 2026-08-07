@@ -1,4 +1,4 @@
-import type { Hotel, Room, RoomCategory, RoomView } from '@ayana/shared-types';
+import type { BedType, Hotel, Room, RoomCategory, RoomView } from '@ayana/shared-types';
 import { pick, randomInt, seededRandom } from '@ayana/shared-utils';
 
 const CATEGORY_WEIGHTS: { category: RoomCategory; weight: number; priceMultiplier: number }[] = [
@@ -14,6 +14,16 @@ const WEIGHTED_CATEGORIES: RoomCategory[] = CATEGORY_WEIGHTS.flatMap((c) =>
 );
 
 const VIEWS: RoomView[] = ['city', 'garden', 'pool', 'front_facing', 'business_district'];
+
+/** Bigger categories skew to larger beds — keeps the bed-type choice meaningful per category. */
+const BED_TYPES_BY_CATEGORY: Record<RoomCategory, BedType[]> = {
+  standard: ['twin', 'double'],
+  deluxe: ['twin', 'double', 'king'],
+  executive: ['double', 'king'],
+  suite: ['double', 'king'],
+  presidential: ['king'],
+};
+
 const SECTIONS = ['A', 'B', 'C', 'D'];
 const ROOMS_PER_FLOOR = 6;
 const FLOORS_PER_HOTEL = 6;
@@ -37,6 +47,7 @@ export function generateRoomsForHotel(hotel: Hotel, seed: number): Room[] {
         section: pick(rng, SECTIONS),
         category,
         view: pick(rng, VIEWS),
+        bedType: pick(rng, BED_TYPES_BY_CATEGORY[category]),
         smoking: rng() < 0.12,
         maxOccupancy: category === 'presidential' || category === 'suite' ? 4 : category === 'executive' ? 3 : 2,
         basePrice: Math.round((hotel.priceFloor * multiplier) / 100) * 100,

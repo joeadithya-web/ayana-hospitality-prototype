@@ -47,7 +47,7 @@ export function generateHotels(): Hotel[] {
     segment: seed.segment,
     address: `${seed.area}, ${seed.city}`,
     amenities: AMENITIES_BY_STAR[seed.starRating],
-    images: [0, 1, 2].map((i) => `https://picsum.photos/seed/${seed.id}-${i}/900/600`),
+    images: [0, 1, 2, 3, 4, 5].map((i) => `https://picsum.photos/seed/${seed.id}-${i}/900/600`),
     description: seed.isFlagship
       ? `Springs by JORA in ${seed.area}, ${seed.city} is AYANA's flagship partner property — a ${seed.starRating}-star ${seed.segment.join('/')} hotel built around the full Home-to-Room journey.`
       : `A ${seed.starRating}-star ${seed.segment.join('/')} hotel in ${seed.area}, ${seed.city}, partnered with AYANA for a seamless guest journey.`,

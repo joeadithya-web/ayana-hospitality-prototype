@@ -1,5 +1,5 @@
 import type { TravellerProfileType } from './guest';
-import type { RoomCategory, RoomView } from './room';
+import type { BedType, RoomCategory, RoomView } from './room';
 
 export type BookingStatus =
   | 'pending_payment'
@@ -38,6 +38,7 @@ export interface Booking {
   /** Sold at booking time — never a specific room. */
   roomCategory: RoomCategory;
   expectedView: RoomView | null;
+  expectedBedType: BedType | null;
   /** Null until allocated; only meaningful once allocationStatus is 'allocated'. */
   roomId: string | null;
   allocationStatus: RoomAllocationStatus;
