@@ -19,10 +19,12 @@ export function KioskCheckOut({ hotelId, onExit }: { hotelId: string; onExit: ()
   const payOutstanding = useSimulationStore((s) => s.payOutstanding);
   const completeCheckout = useSimulationStore((s) => s.completeCheckout);
   const extendStay = useSimulationStore((s) => s.extendStay);
+  const issueRefund = useSimulationStore((s) => s.issueRefund);
 
   const [step, setStep] = useState<Step>('face');
   const [activeBookingId, setActiveBookingId] = useState<string | null>(null);
   const [extendNights, setExtendNights] = useState(1);
+  const [refundIssued, setRefundIssued] = useState(0);
 
   const activeBooking = bookings.find((b) => b.id === activeBookingId) ?? null;
   const activeGuest = activeBooking ? guests.find((g) => g.id === activeBooking.guestId) : null;
@@ -71,12 +73,30 @@ export function KioskCheckOut({ hotelId, onExit }: { hotelId: string; onExit: ()
   const nightlyRate = Math.round(activeBooking.totalAmount / nights);
   const newCheckOutDate = new Date(new Date(activeBooking.checkOutDate).getTime() + extendNights * 86_400_000);
 
+  // Same-day early departure (a few hours early) gets no refund. A full unused night or more
+  // does — the longer before the booked checkout date, the higher the refund tier.
+  const today0 = new Date();
+  today0.setHours(0, 0, 0, 0);
+  const checkout0 = new Date(activeBooking.checkOutDate);
+  checkout0.setHours(0, 0, 0, 0);
+  const unusedNights = Math.max(0, Math.round((checkout0.getTime() - today0.getTime()) / 86_400_000));
+  const refundPercent = unusedNights === 0 ? 0 : unusedNights === 1 ? 25 : 50;
+  const refundAmount = Math.round(nightlyRate * unusedNights * (refundPercent / 100));
+
+  function finishCheckout() {
+    if (refundAmount > 0) {
+      issueRefund(activeBooking!.id, refundAmount, `Early checkout — ${unusedNights} night(s) unused (${refundPercent}% refund)`);
+      setRefundIssued(refundAmount);
+    }
+    completeCheckout(activeBooking!.id);
+    setStep('done');
+  }
+
   function settleAndCheckout() {
     if (outstanding > 0) {
       setStep('payment');
     } else {
-      completeCheckout(activeBooking!.id);
-      setStep('done');
+      finishCheckout();
     }
   }
 
@@ -112,6 +132,19 @@ export function KioskCheckOut({ hotelId, onExit }: { hotelId: string; onExit: ()
             </div>
           </div>
 
+          {!isCheckoutDay && (
+            <div className="w-full rounded-xl2 border border-white/10 bg-white/5 px-5 py-3 text-left text-xs">
+              {refundAmount > 0 ? (
+                <p className="text-springs-400">
+                  Checking out {unusedNights} night(s) early qualifies for a {refundPercent}% refund —{' '}
+                  <strong>{formatINR(refundAmount)}</strong> will be credited back on Early Checkout.
+                </p>
+              ) : (
+                <p className="text-cream-50/50">Checking out today before your booked date doesn't qualify for a refund.</p>
+              )}
+            </div>
+          )}
+
           {isCheckoutDay ? (
             <>
               <Badge tone="gold">Checkout date is today</Badge>
@@ -145,8 +178,7 @@ export function KioskCheckOut({ hotelId, onExit }: { hotelId: string; onExit: ()
           title="Settle Outstanding Balance"
           onPaid={(method) => {
             payOutstanding(activeBooking!.id, method, outstanding);
-            completeCheckout(activeBooking!.id);
-            setStep('done');
+            finishCheckout();
           }}
         />
       )}
@@ -196,6 +228,9 @@ export function KioskCheckOut({ hotelId, onExit }: { hotelId: string; onExit: ()
           <span className="text-4xl">🙏</span>
           <p className="font-display text-lg font-semibold text-cream-50">Thank you for staying with us, {activeGuest.fullName.split(' ')[0]}!</p>
           <p className="max-w-xs text-sm text-cream-50/70">Your invoice has been emailed. We hope to see you again soon.</p>
+          {refundIssued > 0 && (
+            <Badge tone="gold">{formatINR(refundIssued)} refund issued to your original payment method</Badge>
+          )}
           <Button size="lg" variant="secondary" onClick={onExit}>
             Done
           </Button>

@@ -136,11 +136,14 @@ export function ReadyToRoom() {
               <p className="text-xs uppercase tracking-wide text-ink-700/50">Show this at the kiosk or access point</p>
               <QRCodeSVG value={rtr.qrCode} size={160} fgColor="#0A0F1C" />
               <p className="text-xs text-ink-700/40">{rtr.qrCode}</p>
-              {room && (
-                <Badge tone="gold">
-                  Room {room.roomNumber} · Floor {room.floor}
-                </Badge>
-              )}
+              {room &&
+                (booking.status === 'checked_in' ? (
+                  <Badge tone="gold">
+                    Room {room.roomNumber} · Floor {room.floor}
+                  </Badge>
+                ) : (
+                  <Badge tone="neutral">Room number available at check-in</Badge>
+                ))}
               {rtr.estimatedArrival && <Badge tone="neutral">Est. arrival {formatDate(rtr.estimatedArrival)}</Badge>}
             </Card>
           )}
