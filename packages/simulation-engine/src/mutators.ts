@@ -310,6 +310,31 @@ export function withOutstandingPayment(
   };
 }
 
+/** Pushes a booking's checkout date forward and charges the extra nights at its existing nightly rate. */
+export function withStayExtended(data: EngineData, payload: { bookingId: string; newCheckOutDate: string }, source: ActivitySource): EngineData {
+  const booking = data.bookings.find((b) => b.id === payload.bookingId);
+  if (!booking) return data;
+
+  const nights = Math.max(1, Math.round((new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / 86_400_000));
+  const addedNights = Math.round((new Date(payload.newCheckOutDate).getTime() - new Date(booking.checkOutDate).getTime()) / 86_400_000);
+  if (addedNights <= 0) return data;
+  const nightlyRate = Math.round(booking.totalAmount / nights);
+  const extraAmount = nightlyRate * addedNights;
+
+  const withCharged = withCharge(
+    data,
+    { bookingId: booking.id, description: `Stay extended by ${addedNights} night(s)`, category: 'room', amount: extraAmount },
+    source,
+  );
+  const updatedBooking: Booking = { ...withCharged.bookings.find((b) => b.id === booking.id)!, checkOutDate: payload.newCheckOutDate };
+
+  return {
+    ...withCharged,
+    bookings: withCharged.bookings.map((b) => (b.id === booking.id ? updatedBooking : b)),
+    activityLog: [...withCharged.activityLog, logEntry(source, `Stay extended to ${new Date(payload.newCheckOutDate).toLocaleDateString()}`, booking.id, booking.hotelId)],
+  };
+}
+
 export function withCheckoutCompleted(data: EngineData, payload: { bookingId: string }, source: ActivitySource): EngineData {
   const booking = data.bookings.find((b) => b.id === payload.bookingId);
   if (!booking) return data;

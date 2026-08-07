@@ -2,6 +2,7 @@ export type ConciergeRequestType =
   | 'airport_pickup'
   | 'taxi'
   | 'restaurant_booking'
+  | 'spa_booking'
   | 'local_recommendation'
   | 'wake_up_call'
   | 'special_request'

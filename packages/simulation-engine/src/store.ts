@@ -50,6 +50,7 @@ import {
   withRoomDelayed,
   withRoomOverbooked,
   withRoomStatus,
+  withStayExtended,
   withWaiveCharges,
 } from './mutators';
 
@@ -99,6 +100,7 @@ export interface EngineActions {
   postCharge: (input: PostChargeInput) => void;
   payOutstanding: (bookingId: string, method: PaymentMethod, amount: number) => MockTransaction;
   completeCheckout: (bookingId: string) => void;
+  extendStay: (bookingId: string, newCheckOutDate: string) => void;
   requestConcierge: (input: {
     bookingId: string;
     guestId: string;
@@ -203,6 +205,12 @@ export const useSimulationStore = create<EngineStore>()((set, get) => ({
     const next = withCheckoutCompleted(get(), { bookingId }, currentSource());
     set(next);
     simulationBus.publish('checkout_completed', { bookingId });
+  },
+
+  extendStay: (bookingId, newCheckOutDate) => {
+    const next = withStayExtended(get(), { bookingId, newCheckOutDate }, currentSource());
+    set(next);
+    simulationBus.publish('stay_extended', { bookingId, newCheckOutDate });
   },
 
   requestConcierge: (input) => {
@@ -344,6 +352,9 @@ simulationBus.subscribe((event) => {
       break;
     case 'booking_window_expired':
       useSimulationStore.setState(withBookingWindowExpired(state, event.payload as any, 'system'));
+      break;
+    case 'stay_extended':
+      useSimulationStore.setState(withStayExtended(state, event.payload as any, 'system'));
       break;
     case 'room_ready':
       useSimulationStore.setState(withReadyToRoomPatch(state, event.payload as any, 'system'));

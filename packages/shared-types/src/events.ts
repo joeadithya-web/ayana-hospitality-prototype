@@ -13,6 +13,7 @@ export type SimulationEventType =
   | 'room_overbooked'
   | 'room_delayed'
   | 'booking_window_expired'
+  | 'stay_extended'
   | 'room_status_changed'
   | 'room_ready'
   | 'housekeeping_task_created'
