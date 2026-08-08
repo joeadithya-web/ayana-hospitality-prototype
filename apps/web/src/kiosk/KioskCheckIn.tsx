@@ -48,9 +48,11 @@ export function KioskCheckIn({ hotelId, onExit }: { hotelId: string; onExit: () 
     setActiveBookingId(booking.id);
     updateReadyToRoom(booking.id, { identityVerified: true });
 
-    const guest = guests.find((g) => g.id === booking.guestId);
+    // Any outstanding balance is always surfaced — the app has already told the guest it's
+    // due at check-in, so the kiosk must never settle or skip it behind their back. VIPs get
+    // the option to defer it to the room bill, but only by choosing it themselves.
     const remaining = booking.totalAmount - booking.amountPaid;
-    if (remaining > 0 && !guest?.isVip) {
+    if (remaining > 0) {
       setStep('payment');
     } else {
       allocateAndFinish(booking);
@@ -144,11 +146,17 @@ export function KioskCheckIn({ hotelId, onExit }: { hotelId: string; onExit: () 
         <KioskPaymentStep
           amountDue={activeBooking.totalAmount - activeBooking.amountPaid}
           title="Balance Due Before Check-In"
-          helper="Your reservation was partially paid. Please settle the remaining balance to receive your room key."
+          helper={
+            activeGuest?.isVip
+              ? `You paid ${activeBooking.paymentTier}% at booking. Settle the balance now, or as a VIP guest carry it on your room bill and pay any time from the app.`
+              : `You paid ${activeBooking.paymentTier}% at booking. Please settle the remaining balance to receive your room key.`
+          }
           onPaid={(method) => {
             payBooking(activeBooking.id, method, activeBooking.totalAmount - activeBooking.amountPaid);
             allocateAndFinish({ ...activeBooking, amountPaid: activeBooking.totalAmount });
           }}
+          onDefer={activeGuest?.isVip ? () => allocateAndFinish(activeBooking) : undefined}
+          deferLabel="VIP — add to my room bill instead"
         />
       )}
 

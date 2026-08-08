@@ -28,11 +28,16 @@ export function KioskPaymentStep({
   onPaid,
   title = 'Complete Payment',
   helper,
+  onDefer,
+  deferLabel,
 }: {
   amountDue: number;
   onPaid: (method: PaymentMethod) => void;
   title?: string;
   helper?: string;
+  /** Optional escape hatch (e.g. a VIP settling on departure instead). Never auto-taken. */
+  onDefer?: () => void;
+  deferLabel?: string;
 }) {
   const [method, setMethod] = useState<PaymentMethod>('upi');
   const [status, setStatus] = useState<'idle' | 'processing' | 'done'>('idle');
@@ -73,6 +78,15 @@ export function KioskPaymentStep({
           <Button fullWidth size="lg" disabled={status === 'processing'} onClick={pay}>
             {status === 'processing' ? 'Processing…' : `Pay ${formatINR(amountDue)}`}
           </Button>
+          {onDefer && (
+            <button
+              className="text-xs text-cream-50/50 underline disabled:opacity-40"
+              disabled={status === 'processing'}
+              onClick={onDefer}
+            >
+              {deferLabel ?? 'Add to my room bill instead'}
+            </button>
+          )}
         </>
       ) : (
         <div className="flex flex-col items-center gap-2 py-2">
