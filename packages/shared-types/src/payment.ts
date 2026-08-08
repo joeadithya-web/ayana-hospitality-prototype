@@ -9,7 +9,9 @@ export type PaymentMethod =
   | 'credit_card'
   | 'wallet'
   | 'gift_card'
-  | 'cash_front_desk';
+  | 'cash_front_desk'
+  /** Corporate accounts only — settled on the contract's billing cycle, not at booking. */
+  | 'wire_transfer';
 
 export type PaymentStatus = 'success' | 'failed' | 'pending';
 

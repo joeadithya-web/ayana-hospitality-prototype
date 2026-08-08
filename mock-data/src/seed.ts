@@ -2,6 +2,7 @@ import type {
   ActivityLogEvent,
   Booking,
   ComplianceBadge,
+  CorporateAccount,
   ConciergeRequest,
   Guest,
   GuestFeedback,
@@ -21,6 +22,7 @@ import { generateGuests } from './guests';
 import { generateBookings } from './bookings';
 import { generateInvoicesForPastBookings } from './invoices';
 import { generateStaff } from './staff';
+import { generateCorporates } from './corporates';
 import { generateFeedbackForPastBookings } from './feedback';
 
 export interface SeedData {
@@ -38,6 +40,7 @@ export interface SeedData {
   overrideLog: OverrideLogEntry[];
   staff: StaffUser[];
   feedback: GuestFeedback[];
+  corporates: CorporateAccount[];
   compliance: ComplianceBadge;
 }
 
@@ -49,6 +52,7 @@ export function generateSeedData(): SeedData {
   const invoices = generateInvoicesForPastBookings(bookings);
   const staff = generateStaff(hotels);
   const feedback = generateFeedbackForPastBookings(bookings);
+  const corporates = generateCorporates();
 
   return {
     hotels,
@@ -65,6 +69,7 @@ export function generateSeedData(): SeedData {
     overrideLog: [],
     staff,
     feedback,
+    corporates,
     compliance: {
       consentGiven: true,
       dataEncrypted: true,

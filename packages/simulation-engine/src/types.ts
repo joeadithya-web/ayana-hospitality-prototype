@@ -4,6 +4,8 @@ import type { SeedData } from '@ayana/mock-data';
 export interface EngineData extends SeedData {
   currentGuestId: string | null;
   currentStaffId: string | null;
+  /** Set when the traveller is booking against a signed corporate agreement. */
+  currentCorporateId: string | null;
   /** Set by the Simulation Control Centre to demonstrate a failure/recovery path live across apps. */
   activeFailureScenario: import('@ayana/shared-types').FailureScenarioId | null;
 }
@@ -19,6 +21,21 @@ export interface CreateBookingInput {
   checkOutDate: string;
   guestsCount: number;
   paymentTier: 100 | 50 | 25;
+  /** Present when booked on a corporate agreement — applies its negotiated rate. */
+  corporateId?: string | null;
+}
+
+export interface CreateGroupBookingInput {
+  guestId: string;
+  hotelId: string;
+  roomCategory: import('@ayana/shared-types').RoomCategory;
+  checkInDate: string;
+  checkOutDate: string;
+  /** Total party size across all rooms. */
+  totalGuests: number;
+  roomsCount: number;
+  paymentTier: 100 | 50 | 25;
+  corporateId?: string | null;
 }
 
 export interface PostChargeInput {

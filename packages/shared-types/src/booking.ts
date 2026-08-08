@@ -53,5 +53,9 @@ export interface Booking {
   totalAmount: number;
   amountPaid: number;
   readyToRoom: ReadyToRoomStatus;
+  /** Set when booked against a signed corporate agreement — drives rates and wire settlement. */
+  corporateId: string | null;
+  /** Shared by every room booked together for one party; null for single-room bookings. */
+  groupRef: string | null;
   createdAt: string;
 }

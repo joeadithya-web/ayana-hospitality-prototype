@@ -21,12 +21,13 @@ import type {
   RoomStatus,
 } from '@ayana/shared-types';
 import { simulationBus } from './broadcast';
-import type { CreateBookingInput, EngineData, PostChargeInput } from './types';
+import type { CreateBookingInput, CreateGroupBookingInput, EngineData, PostChargeInput } from './types';
 import {
   withBookingCancelled,
   withBookingCreated,
   withBookingModified,
   withCharge,
+  withGroupBookingCreated,
   withGuestCancellation,
   withRoomUpgradeRequested,
   withRoomUpgradedNow,
@@ -61,7 +62,7 @@ import {
   withWaiveCharges,
 } from './mutators';
 
-const STORAGE_KEY = 'ayana-simulation-state-v6';
+const STORAGE_KEY = 'ayana-simulation-state-v7';
 
 /** Which app instance this browser tab is running — set once by each app's root on mount. */
 let activeSource: ActivitySource = typeof window === 'undefined' ? 'system' : 'traveller_app';
@@ -88,7 +89,7 @@ function persist(data: EngineData) {
 }
 
 function initialData(): EngineData {
-  return loadPersisted() ?? { ...generateSeedData(), currentGuestId: null, currentStaffId: null, activeFailureScenario: null };
+  return loadPersisted() ?? { ...generateSeedData(), currentGuestId: null, currentStaffId: null, currentCorporateId: null, activeFailureScenario: null };
 }
 
 export interface EngineActions {
@@ -97,6 +98,10 @@ export interface EngineActions {
   logout: () => void;
   loginStaff: (staffId: string) => void;
   logoutStaff: () => void;
+  /** Sign in to a signed corporate agreement — switches the app into corporate mode. */
+  loginCorporate: (corporateId: string) => void;
+  logoutCorporate: () => void;
+  createGroupBooking: (input: CreateGroupBookingInput) => Booking[];
   updateMemory: (guestId: string, patch: Partial<AyanaMemory>) => void;
   createBooking: (input: CreateBookingInput) => Booking;
   payBooking: (bookingId: string, method: PaymentMethod, amount: number) => MockTransaction;
@@ -163,16 +168,26 @@ export const useSimulationStore = create<EngineStore>()((set, get) => ({
   ...initialData(),
 
   resetDemo: () => {
-    const fresh: EngineData = { ...generateSeedData(), currentGuestId: null, currentStaffId: null, activeFailureScenario: null };
+    const fresh: EngineData = { ...generateSeedData(), currentGuestId: null, currentStaffId: null, currentCorporateId: null, activeFailureScenario: null };
     set(fresh);
     persist(fresh);
     simulationBus.publish('demo_reset', fresh);
   },
 
   login: (guestId) => set({ currentGuestId: guestId }),
-  logout: () => set({ currentGuestId: null }),
+  logout: () => set({ currentGuestId: null, currentCorporateId: null }),
   loginStaff: (staffId) => set({ currentStaffId: staffId }),
   logoutStaff: () => set({ currentStaffId: null }),
+  loginCorporate: (corporateId) => set({ currentCorporateId: corporateId }),
+  logoutCorporate: () => set({ currentCorporateId: null }),
+
+  createGroupBooking: (input) => {
+    const { data, bookings } = withGroupBookingCreated(get(), input, currentSource());
+    set(data);
+    // Replayed one-by-one through the proven insert path so other tabs keep the same IDs.
+    bookings.forEach((b) => simulationBus.publish('booking_created', b));
+    return bookings;
+  },
 
   updateMemory: (guestId, patch) => {
     const next = withMemoryUpdate(get(), { guestId, patch }, currentSource());

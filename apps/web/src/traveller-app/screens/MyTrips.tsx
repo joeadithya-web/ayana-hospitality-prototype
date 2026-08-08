@@ -31,9 +31,23 @@ export function MyTrips() {
 
   if (!guest) return null;
   const hotelById = new Map(hotels.map((h) => [h.id, h]));
-  const myBookings = bookings
+  const mine = bookings
     .filter((b) => b.guestId === guest.id)
     .sort((a, b) => new Date(b.checkInDate).getTime() - new Date(a.checkInDate).getTime());
+
+  // A group booking is many rooms but one trip — collapse it to the lead room and count
+  // the rest, rather than showing the guest eight near-identical cards.
+  const groupSizes = new Map<string, number>();
+  mine.forEach((b) => {
+    if (b.groupRef) groupSizes.set(b.groupRef, (groupSizes.get(b.groupRef) ?? 0) + 1);
+  });
+  const seenGroups = new Set<string>();
+  const myBookings = mine.filter((b) => {
+    if (!b.groupRef) return true;
+    if (seenGroups.has(b.groupRef)) return false;
+    seenGroups.add(b.groupRef);
+    return true;
+  });
 
   function goTo(bookingId: string, status: string) {
     if (status === 'pending_payment') navigate(`/traveller/payment/${bookingId}`);
@@ -74,6 +88,17 @@ export function MyTrips() {
                 </div>
                 <Badge tone={STATUS_TONE[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
               </div>
+
+              {(booking.groupRef || booking.corporateId) && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {booking.groupRef && (
+                    <Badge tone="gold">
+                      👥 Group · {groupSizes.get(booking.groupRef) ?? 1} rooms
+                    </Badge>
+                  )}
+                  {booking.corporateId && <Badge tone="neutral">🏢 Corporate account</Badge>}
+                </div>
+              )}
 
               {upcoming && (
                 <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-ink-900/10 pt-2.5">

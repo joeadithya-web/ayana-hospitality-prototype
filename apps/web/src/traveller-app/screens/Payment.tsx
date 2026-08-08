@@ -3,9 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import type { PaymentMethod } from '@ayana/shared-types';
 import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
-import { useBooking, useHotel } from '../hooks';
+import { useBooking, useCurrentCorporate, useHotel } from '../hooks';
 
-const METHODS: { id: PaymentMethod; label: string; icon: string }[] = [
+const BASE_METHODS: { id: PaymentMethod; label: string; icon: string }[] = [
   { id: 'upi', label: 'UPI', icon: '📲' },
   { id: 'credit_card', label: 'Credit / Debit Card', icon: '💳' },
   { id: 'wallet', label: 'Wallet Balance', icon: '👛' },
@@ -18,28 +18,41 @@ export function Payment() {
   const navigate = useNavigate();
   const booking = useBooking(bookingId);
   const hotel = useHotel(booking?.hotelId);
+  const corporate = useCurrentCorporate();
   const payBooking = useSimulationStore((s) => s.payBooking);
   const activeFailureScenario = useSimulationStore((s) => s.activeFailureScenario);
   const forcedFailure = activeFailureScenario === 'payment_failure';
 
-  const [method, setMethod] = useState<PaymentMethod>('upi');
+  const wireAvailable = Boolean(corporate?.wireTransferEnabled);
+  const [method, setMethod] = useState<PaymentMethod>(wireAvailable ? 'wire_transfer' : 'upi');
   const [simulateFailure, setSimulateFailure] = useState(false);
   const [status, setStatus] = useState<'idle' | 'processing' | 'failed'>('idle');
 
   if (!booking || !hotel) return null;
 
-  const dueNow = Math.round((booking.totalAmount * booking.paymentTier) / 100) - booking.amountPaid;
+  const wireTransfer = method === 'wire_transfer';
+  // Wire transfer settles the whole stay on the contract's billing cycle rather than
+  // collecting an advance tier now, so the booking is confirmed in full up front.
+  const dueNow = wireTransfer
+    ? booking.totalAmount - booking.amountPaid
+    : Math.round((booking.totalAmount * booking.paymentTier) / 100) - booking.amountPaid;
+
+  const methods = wireAvailable
+    ? [{ id: 'wire_transfer' as PaymentMethod, label: 'Wire Transfer (on account)', icon: '🏦' }, ...BASE_METHODS]
+    : BASE_METHODS;
 
   function handlePay() {
     setStatus('processing');
     setTimeout(() => {
-      if (simulateFailure || forcedFailure) {
+      // A pre-established wire arrangement can't be declined at the counter — the failure
+      // scenarios model gateway declines, which don't apply here.
+      if ((simulateFailure || forcedFailure) && !wireTransfer) {
         setStatus('failed');
         return;
       }
       payBooking(booking!.id, method, dueNow);
       navigate(`/traveller/ready/${booking!.id}`);
-    }, 1100);
+    }, wireTransfer ? 600 : 1100);
   }
 
   return (
@@ -50,14 +63,29 @@ export function Payment() {
         <div className="px-5">
           <Card>
             <div className="flex justify-between text-sm">
-              <span className="text-ink-700/60">Amount due now</span>
+              <span className="text-ink-700/60">{wireTransfer ? 'Billed to account' : 'Amount due now'}</span>
               <span className="font-semibold text-ink-900">₹{dueNow.toLocaleString('en-IN')}</span>
             </div>
+            {corporate && (
+              <p className="mt-1 text-[11px] text-gold-600">
+                {corporate.logoEmoji} {corporate.name} · {corporate.negotiatedDiscountPercent}% contracted rate applied
+              </p>
+            )}
             <Badge tone="neutral">Simulated payment — no real gateway, no real charge</Badge>
           </Card>
 
+          {wireTransfer && corporate && (
+            <Card className="mt-4 bg-ink-900/[0.03]">
+              <p className="text-xs font-medium text-ink-900">Pre-approved under your agreement</p>
+              <p className="mt-1 text-[11px] text-ink-700/60">
+                Contract {corporate.contractRef} · settled {corporate.settlementTerms} to {corporate.billingEmail}. No
+                card or advance is needed — confirming books the room against the agreement.
+              </p>
+            </Card>
+          )}
+
           <div className="mt-5 flex flex-col gap-2">
-            {METHODS.map((m) => (
+            {methods.map((m) => (
               <label
                 key={m.id}
                 className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
@@ -71,7 +99,7 @@ export function Payment() {
             ))}
           </div>
 
-          {forcedFailure ? (
+          {wireTransfer ? null : forcedFailure ? (
             <Badge tone="danger">Control Centre: Payment Failure scenario is active — this payment will be declined</Badge>
           ) : (
             <label className="mt-4 flex items-center gap-2 text-xs text-ink-700/50">
@@ -92,7 +120,13 @@ export function Payment() {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-900/10 bg-white/95 px-5 py-4 backdrop-blur">
         <div className="mx-auto max-w-md">
           <Button fullWidth size="lg" onClick={handlePay} disabled={status === 'processing'}>
-            {status === 'processing' ? 'Processing…' : `Pay ₹${dueNow.toLocaleString('en-IN')}`}
+            {status === 'processing'
+              ? wireTransfer
+                ? 'Confirming…'
+                : 'Processing…'
+              : wireTransfer
+                ? 'Confirm on Wire Transfer'
+                : `Pay ₹${dueNow.toLocaleString('en-IN')}`}
           </Button>
         </div>
       </div>

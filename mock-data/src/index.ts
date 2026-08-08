@@ -5,4 +5,5 @@ export * from './bookings';
 export * from './invoices';
 export * from './staff';
 export * from './feedback';
+export * from './corporates';
 export * from './seed';

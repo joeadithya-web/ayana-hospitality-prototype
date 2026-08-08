@@ -7,6 +7,7 @@ export * from './staff';
 export * from './housekeeping';
 export * from './concierge';
 export * from './services';
+export * from './corporate';
 export * from './notification';
 export * from './ai';
 export * from './activity';

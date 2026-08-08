@@ -94,6 +94,8 @@ function buildBooking(params: {
           ? // 'confirmed' only exists in our state machine once payment clears — keep that invariant true in seed data too.
             { ...emptyReadyToRoom(), paymentVerified: true }
           : emptyReadyToRoom(),
+    corporateId: null,
+    groupRef: null,
     createdAt: daysFrom(checkIn, -randomInt(rng, 3, 30)).toISOString(),
   };
 }

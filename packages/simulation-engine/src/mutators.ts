@@ -24,7 +24,7 @@ import type {
   RoomStatus,
 } from '@ayana/shared-types';
 import { makeId, makeMockRef } from '@ayana/shared-utils';
-import type { CreateBookingInput, EngineData, PostChargeInput, RequestConciergeInput } from './types';
+import type { CreateBookingInput, CreateGroupBookingInput, EngineData, PostChargeInput, RequestConciergeInput } from './types';
 
 function logEntry(
   source: ActivitySource,
@@ -73,6 +73,24 @@ function categoryPrice(rooms: Room[], hotelId: string, category: Booking['roomCa
   return Math.round(avg / 100) * 100;
 }
 
+/**
+ * Nightly rate for a booking, with the corporate agreement's negotiated discount applied
+ * when one is in play. Kept in one place so a single room and a 12-room group are always
+ * priced off the same contract terms.
+ */
+function corporateNightlyPrice(
+  data: EngineData,
+  hotelId: string,
+  category: Booking['roomCategory'],
+  corporateId: string | null,
+): number {
+  const published = categoryPrice(data.rooms, hotelId, category);
+  if (!corporateId) return published;
+  const account = data.corporates.find((c) => c.id === corporateId);
+  if (!account) return published;
+  return Math.round((published * (100 - account.negotiatedDiscountPercent)) / 100);
+}
+
 export function withBookingCreated(
   data: EngineData,
   input: CreateBookingInput,
@@ -82,7 +100,7 @@ export function withBookingCreated(
     1,
     Math.round((new Date(input.checkOutDate).getTime() - new Date(input.checkInDate).getTime()) / 86_400_000),
   );
-  const nightlyPrice = categoryPrice(data.rooms, input.hotelId, input.roomCategory);
+  const nightlyPrice = corporateNightlyPrice(data, input.hotelId, input.roomCategory, input.corporateId ?? null);
   const totalAmount = nightlyPrice * nights;
   const amountPaid = 0;
   const holdUntil =
@@ -113,6 +131,8 @@ export function withBookingCreated(
     totalAmount,
     amountPaid,
     readyToRoom: emptyReadyToRoom(),
+    corporateId: input.corporateId ?? null,
+    groupRef: null,
     createdAt: new Date().toISOString(),
   };
 
@@ -129,6 +149,83 @@ export function withBookingCreated(
         booking.guestId,
         'Booking created',
         `Your ${booking.roomCategory} stay at ${hotelName} is booked — complete payment to confirm.`,
+      ),
+    },
+  };
+}
+
+/**
+ * One booking per room, all sharing a group reference. A party of ten can't sleep in one
+ * room, so the hotel has to allocate and service each room independently — but the guest
+ * booked once and should see, pay and manage it as a single thing.
+ */
+export function withGroupBookingCreated(
+  data: EngineData,
+  input: CreateGroupBookingInput,
+  source: ActivitySource,
+): { data: EngineData; bookings: Booking[]; groupRef: string } {
+  const nights = Math.max(
+    1,
+    Math.round((new Date(input.checkOutDate).getTime() - new Date(input.checkInDate).getTime()) / 86_400_000),
+  );
+  const nightlyPrice = corporateNightlyPrice(data, input.hotelId, input.roomCategory, input.corporateId ?? null);
+  const groupRef = makeId('grp');
+  const holdUntil =
+    input.paymentTier === 100
+      ? null
+      : (() => {
+          const d = new Date();
+          d.setHours(18, 0, 0, 0);
+          return d.toISOString();
+        })();
+
+  const roomsCount = Math.max(1, input.roomsCount);
+  // Spread the party across rooms as evenly as possible — the remainder rides on the first
+  // rooms rather than leaving a last room holding everyone.
+  const base = Math.floor(input.totalGuests / roomsCount);
+  const remainder = input.totalGuests % roomsCount;
+
+  const bookings: Booking[] = Array.from({ length: roomsCount }, (_, i) => ({
+    id: makeId('bkg'),
+    guestId: input.guestId,
+    hotelId: input.hotelId,
+    roomCategory: input.roomCategory,
+    expectedView: null,
+    expectedBedType: null,
+    roomId: null,
+    allocationStatus: 'pending' as const,
+    checkInDate: input.checkInDate,
+    checkOutDate: input.checkOutDate,
+    guestsCount: base + (i < remainder ? 1 : 0),
+    status: 'pending_payment' as const,
+    bookingType: 'group' as const,
+    paymentTier: input.paymentTier,
+    holdUntil,
+    totalAmount: nightlyPrice * nights,
+    amountPaid: 0,
+    readyToRoom: emptyReadyToRoom(),
+    corporateId: input.corporateId ?? null,
+    groupRef,
+    createdAt: new Date().toISOString(),
+  }));
+
+  const hotelName = data.hotels.find((h) => h.id === input.hotelId)?.name ?? 'your hotel';
+
+  return {
+    bookings,
+    groupRef,
+    data: {
+      ...data,
+      bookings: [...data.bookings, ...bookings],
+      activityLog: [
+        ...data.activityLog,
+        logEntry(source, `Group booking created — ${roomsCount} rooms for ${input.totalGuests} guests`, bookings[0]?.id ?? null, input.hotelId),
+      ],
+      notifications: pushNotification(
+        data,
+        input.guestId,
+        'Group booking created',
+        `${roomsCount} ${input.roomCategory} rooms held at ${hotelName} for ${input.totalGuests} guests — complete payment to confirm.`,
       ),
     },
   };

@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import type { BedType, RoomCategory, RoomView } from '@ayana/shared-types';
 import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
-import { useCurrentGuest, useHotel, useRoomsForHotelAndCategory } from '../hooks';
+import { useCurrentCorporate, useCurrentGuest, useHotel, useRoomsForHotelAndCategory } from '../hooks';
 
 const schema = z.object({
   checkInDate: z.string().min(1),
@@ -35,6 +35,7 @@ export function Booking() {
   const navigate = useNavigate();
   const hotel = useHotel(hotelId);
   const guest = useCurrentGuest();
+  const corporate = useCurrentCorporate();
   const matchingRooms = useRoomsForHotelAndCategory(hotelId, category);
   const createBooking = useSimulationStore((s) => s.createBooking);
 
@@ -51,13 +52,18 @@ export function Booking() {
     return diff > 0 ? diff : 1;
   }, [values.checkInDate, values.checkOutDate]);
 
-  const nightlyPrice = useMemo(() => {
+  const publishedNightly = useMemo(() => {
     const exact = matchingRooms.filter((r) => r.view === view && r.bedType === bedType);
     const pool = exact.length > 0 ? exact : matchingRooms;
     if (pool.length === 0) return 0;
     const avg = pool.reduce((sum, r) => sum + r.basePrice, 0) / pool.length;
     return Math.round(avg / 100) * 100;
   }, [matchingRooms, view, bedType]);
+
+  // A corporate booker pays their agreement's contracted rate, not the published one.
+  const nightlyPrice = corporate
+    ? Math.round((publishedNightly * (100 - corporate.negotiatedDiscountPercent)) / 100)
+    : publishedNightly;
 
   const maxOccupancy = Math.max(2, ...matchingRooms.map((r) => r.maxOccupancy));
 
@@ -78,6 +84,7 @@ export function Booking() {
       checkOutDate: new Date(data.checkOutDate).toISOString(),
       guestsCount: data.guestsCount,
       paymentTier: data.paymentTier as 100 | 50 | 25,
+      corporateId: corporate?.id ?? null,
     });
     navigate(`/traveller/payment/${booking.id}`);
   }
@@ -92,6 +99,9 @@ export function Booking() {
             <div className="flex items-start justify-between">
               <p className="font-medium capitalize text-ink-900">{category}</p>
               <div className="text-right">
+                {corporate && publishedNightly > nightlyPrice && (
+                  <p className="text-[11px] text-ink-700/40 line-through">₹{publishedNightly.toLocaleString('en-IN')}</p>
+                )}
                 <p className="text-sm font-semibold text-ink-900">₹{nightlyPrice.toLocaleString('en-IN')}</p>
                 <p className="text-[10px] text-ink-700/40">Exclusive of Taxes</p>
               </div>
@@ -99,6 +109,11 @@ export function Booking() {
             <p className="text-xs capitalize text-ink-700/50">
               {BED_LABEL[bedType]} · {view.replace('_', ' ')} view
             </p>
+            {corporate && (
+              <p className="mt-1.5 rounded-lg bg-gold-500/10 px-2.5 py-1.5 text-[11px] text-gold-600">
+                {corporate.logoEmoji} {corporate.negotiatedDiscountPercent}% contracted rate — billed to {corporate.name}
+              </p>
+            )}
             <p className="mt-1 text-[11px] text-ink-700/40">
               Your exact room is assigned closer to arrival — not decided at booking.
             </p>

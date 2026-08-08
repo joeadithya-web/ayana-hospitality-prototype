@@ -1,8 +1,13 @@
 import { useSimulationStore } from '@ayana/simulation-engine';
-import type { Booking, Guest, Hotel, Room } from '@ayana/shared-types';
+import type { Booking, CorporateAccount, Guest, Hotel, Room } from '@ayana/shared-types';
 
 export function useCurrentGuest(): Guest | null {
   return useSimulationStore((s) => s.guests.find((g) => g.id === s.currentGuestId) ?? null);
+}
+
+/** The signed corporate agreement the traveller is currently booking against, if any. */
+export function useCurrentCorporate(): CorporateAccount | null {
+  return useSimulationStore((s) => s.corporates.find((c) => c.id === s.currentCorporateId) ?? null);
 }
 
 export function useHotel(hotelId: string | undefined): Hotel | null {
