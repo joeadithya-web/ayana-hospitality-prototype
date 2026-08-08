@@ -58,6 +58,9 @@ export function MyTrips() {
           );
           const balanceDue = Math.max(0, booking.totalAmount - booking.amountPaid);
           const upcoming = booking.status === 'confirmed' || booking.status === 'pending_payment';
+          const inHouse = booking.status === 'checked_in';
+          // Changes stay possible right up to checkout — never only on the day of arrival.
+          const manageable = upcoming || inHouse;
 
           return (
             <Card key={booking.id} className="cursor-pointer" onClick={() => goTo(booking.id, booking.status)}>
@@ -83,6 +86,42 @@ export function MyTrips() {
                     <Badge tone="warning">Key not issued yet</Badge>
                   )}
                   {balanceDue > 0 && <Badge tone="warning">{formatINR(balanceDue)} due at check-in</Badge>}
+                </div>
+              )}
+
+              {inHouse && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-ink-900/10 pt-2.5">
+                  <Badge tone="neutral">
+                    <span className="capitalize">{booking.roomCategory}</span>
+                  </Badge>
+                  {balanceDue > 0 ? (
+                    <Badge tone="warning">{formatINR(balanceDue)} on your bill</Badge>
+                  ) : (
+                    <Badge tone="success">Bill settled</Badge>
+                  )}
+                </div>
+              )}
+
+              {manageable && (
+                <div className="mt-2.5 flex gap-2">
+                  <button
+                    className="flex-1 rounded-lg bg-ink-900/5 py-2 text-xs font-medium text-ink-900"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      goTo(booking.id, booking.status);
+                    }}
+                  >
+                    {inHouse ? 'View Stay' : 'View Booking'}
+                  </button>
+                  <button
+                    className="flex-1 rounded-lg border border-ink-900/15 py-2 text-xs font-medium text-ink-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/traveller/manage/${booking.id}`);
+                    }}
+                  >
+                    Manage / Cancel
+                  </button>
                 </div>
               )}
             </Card>

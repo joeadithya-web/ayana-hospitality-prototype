@@ -4,8 +4,9 @@ import { evaluateRoomAllocation } from '@ayana/ai-engine';
 import type { Booking, KioskFailureReason } from '@ayana/shared-types';
 import { Badge, Button } from '@ayana/shared-ui';
 import { FAILURE_COPY, FaceScanStep, GuestIdentityHeader, KioskPaymentStep, ReservationPicker, RevealableRoom } from './kioskShared';
+import { KioskUpsell } from './KioskUpsell';
 
-type Step = 'face' | 'reservation_pick' | 'qr_fallback' | 'payment' | 'waiting' | 'success' | 'failed';
+type Step = 'face' | 'reservation_pick' | 'qr_fallback' | 'payment' | 'waiting' | 'success' | 'upsell' | 'failed';
 
 export function KioskCheckIn({ hotelId, onExit }: { hotelId: string; onExit: () => void }) {
   const bookings = useSimulationStore((s) => s.bookings);
@@ -175,10 +176,23 @@ export function KioskCheckIn({ hotelId, onExit }: { hotelId: string; onExit: () 
           <p className="font-display text-lg font-semibold text-cream-50">Welcome, {activeGuest.fullName.split(' ')[0]}!</p>
           {activeRoom && <RevealableRoom roomNumber={activeRoom.roomNumber} floor={activeRoom.floor} />}
           <p className="max-w-xs text-sm text-cream-50/70">Your mobile key is already active on your phone. Enjoy your stay!</p>
-          <Button size="lg" variant="secondary" onClick={onExit}>
-            Done
+          <Button size="lg" onClick={() => setStep('upsell')}>
+            Continue
           </Button>
+          <button className="text-xs text-cream-50/40 underline" onClick={onExit}>
+            Skip to menu
+          </button>
         </div>
+      )}
+
+      {/* Upsell only after identity and room are settled — never before the guest knows they're in. */}
+      {step === 'upsell' && activeBooking && activeGuest && (
+        <KioskUpsell
+          booking={activeBooking}
+          guest={activeGuest}
+          roomNumber={activeRoom?.roomNumber ?? null}
+          onDone={onExit}
+        />
       )}
 
       {step === 'failed' && failureReason && (

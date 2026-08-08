@@ -236,6 +236,17 @@ function UpcomingStays({ bookings, hotelById }: { bookings: Booking[]; hotelById
                     </div>
                   </div>
                 )}
+
+                {/* Always reachable — changing or cancelling is not limited to arrival day. */}
+                <button
+                  className="mt-2.5 w-full rounded-lg border border-ink-900/15 py-2 text-xs font-medium text-ink-700"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/traveller/manage/${b.id}`);
+                  }}
+                >
+                  Manage / Cancel Booking
+                </button>
               </Card>
             </div>
           );

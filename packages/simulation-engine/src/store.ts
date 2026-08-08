@@ -11,11 +11,13 @@ import type {
   GuestFeedback,
   HousekeepingTask,
   HousekeepingTaskStatus,
+  InvoiceLineItemCategory,
   MockTransaction,
   NotificationChannel,
   PaymentMethod,
   ReadyToRoomStatus,
   RefundRecord,
+  RoomCategory,
   RoomStatus,
 } from '@ayana/shared-types';
 import { simulationBus } from './broadcast';
@@ -23,7 +25,12 @@ import type { CreateBookingInput, EngineData, PostChargeInput } from './types';
 import {
   withBookingCancelled,
   withBookingCreated,
+  withBookingModified,
   withCharge,
+  withGuestCancellation,
+  withRoomUpgradeRequested,
+  withRoomUpgradedNow,
+  withServiceBooked,
   withCheckoutCompleted,
   withConciergeRequest,
   withConciergeStatusUpdate,
@@ -119,6 +126,29 @@ export interface EngineActions {
   waiveCharges: (bookingId: string, staffId: string, reason: string) => void;
   reissueKey: (bookingId: string, staffId: string) => void;
   cancelBooking: (bookingId: string, staffId: string, reason: string) => void;
+  /** Guest-side cancellation; `refundAmount` is the figure already quoted to the guest. */
+  cancelBookingByGuest: (bookingId: string, refundAmount: number, reason: string) => void;
+  modifyBooking: (bookingId: string, checkInDate: string, checkOutDate: string, guestsCount: number) => void;
+  bookService: (input: {
+    bookingId: string;
+    guestId: string;
+    hotelId: string;
+    requestType: ConciergeRequestType;
+    details: string;
+    description: string;
+    amount: number;
+    chargeCategory: InvoiceLineItemCategory;
+  }) => ConciergeRequest;
+  /** App-side upgrade: raises a Front Office move task rather than allocating instantly. */
+  requestRoomUpgrade: (bookingId: string, newCategory: RoomCategory, extraAmount: number) => void;
+  /** Kiosk-side upgrade: a specific room is chosen and paid for on the spot. */
+  upgradeRoomNow: (
+    bookingId: string,
+    newCategory: RoomCategory,
+    newRoomId: string,
+    extraAmount: number,
+    method: PaymentMethod,
+  ) => void;
   expireBookingWindow: (bookingId: string) => void;
   updateHousekeepingTask: (taskId: string, status: HousekeepingTaskStatus) => void;
   updateConciergeStatus: (requestId: string, status: ConciergeRequestStatus) => void;
@@ -286,6 +316,47 @@ export const useSimulationStore = create<EngineStore>()((set, get) => ({
     simulationBus.publish('override_applied', { kind: 'cancel_booking', bookingId, staffId, reason });
   },
 
+  cancelBookingByGuest: (bookingId, refundAmount, reason) => {
+    const next = withGuestCancellation(get(), { bookingId, refundAmount, reason }, currentSource());
+    set(next);
+    simulationBus.publish('booking_cancelled_by_guest', { bookingId, refundAmount, reason });
+  },
+
+  modifyBooking: (bookingId, checkInDate, checkOutDate, guestsCount) => {
+    const next = withBookingModified(get(), { bookingId, checkInDate, checkOutDate, guestsCount }, currentSource());
+    set(next);
+    simulationBus.publish('booking_modified', { bookingId, checkInDate, checkOutDate, guestsCount });
+  },
+
+  bookService: (input) => {
+    const { data, request } = withServiceBooked(get(), input, currentSource());
+    set(data);
+    // Replayed as the two primitives other tabs already reconcile correctly. A single
+    // composite event would mint a second request ID in every other tab.
+    simulationBus.publish('concierge_request_created', request);
+    if (input.amount > 0) {
+      simulationBus.publish('balance_updated', {
+        bookingId: input.bookingId,
+        description: input.description,
+        category: input.chargeCategory,
+        amount: input.amount,
+      });
+    }
+    return request;
+  },
+
+  requestRoomUpgrade: (bookingId, newCategory, extraAmount) => {
+    const next = withRoomUpgradeRequested(get(), { bookingId, newCategory, extraAmount }, currentSource());
+    set(next);
+    simulationBus.publish('room_upgrade_requested', { bookingId, newCategory, extraAmount });
+  },
+
+  upgradeRoomNow: (bookingId, newCategory, newRoomId, extraAmount, method) => {
+    const next = withRoomUpgradedNow(get(), { bookingId, newCategory, newRoomId, extraAmount, method }, currentSource());
+    set(next);
+    simulationBus.publish('room_upgraded', { bookingId, newCategory, newRoomId, extraAmount, method });
+  },
+
   expireBookingWindow: (bookingId) => {
     const next = withBookingWindowExpired(get(), { bookingId }, currentSource());
     set(next);
@@ -355,6 +426,18 @@ simulationBus.subscribe((event) => {
       break;
     case 'stay_extended':
       useSimulationStore.setState(withStayExtended(state, event.payload as any, 'system'));
+      break;
+    case 'booking_modified':
+      useSimulationStore.setState(withBookingModified(state, event.payload as any, 'system'));
+      break;
+    case 'booking_cancelled_by_guest':
+      useSimulationStore.setState(withGuestCancellation(state, event.payload as any, 'system'));
+      break;
+    case 'room_upgrade_requested':
+      useSimulationStore.setState(withRoomUpgradeRequested(state, event.payload as any, 'system'));
+      break;
+    case 'room_upgraded':
+      useSimulationStore.setState(withRoomUpgradedNow(state, event.payload as any, 'system'));
       break;
     case 'room_ready':
       useSimulationStore.setState(withReadyToRoomPatch(state, event.payload as any, 'system'));

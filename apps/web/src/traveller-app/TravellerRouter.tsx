@@ -13,6 +13,7 @@ import { Payment } from './screens/Payment';
 import { ReadyToRoom } from './screens/ReadyToRoom';
 import { MyTrips } from './screens/MyTrips';
 import { Stay } from './screens/Stay';
+import { ManageBooking } from './screens/ManageBooking';
 import { Concierge } from './screens/Concierge';
 import { Checkout } from './screens/Checkout';
 import { Profile } from './screens/Profile';
@@ -44,6 +45,7 @@ export function TravellerRouter() {
       <Route path="ready/:bookingId" element={<RequireAuth><ReadyToRoom /></RequireAuth>} />
       <Route path="trips" element={<RequireAuth><MyTrips /></RequireAuth>} />
       <Route path="stay/:bookingId" element={<RequireAuth><Stay /></RequireAuth>} />
+      <Route path="manage/:bookingId" element={<RequireAuth><ManageBooking /></RequireAuth>} />
       <Route path="concierge/:bookingId" element={<RequireAuth><Concierge /></RequireAuth>} />
       <Route path="checkout/:bookingId" element={<RequireAuth><Checkout /></RequireAuth>} />
       <Route path="profile" element={<RequireAuth><Profile /></RequireAuth>} />

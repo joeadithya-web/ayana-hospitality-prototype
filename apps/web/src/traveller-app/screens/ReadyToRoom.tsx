@@ -5,6 +5,8 @@ import { useSimulationStore } from '@ayana/simulation-engine';
 import { Badge, Button, Card, PageHeader, ProgressSteps } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useBooking, useCurrentGuest, useHotel } from '../hooks';
+import { AiConciergePanel } from '../components/AiConciergePanel';
+import { NextTripPanel } from '../components/NextTripPanel';
 import { IdentityVerificationSheet } from './IdentityVerificationSheet';
 
 const BED_LABEL: Record<string, string> = { twin: 'Twin beds', double: 'Double bed', king: 'King bed' };
@@ -166,6 +168,14 @@ export function ReadyToRoom() {
                   Scan this QR at the hotel kiosk to check in and collect your key. Your room number is assigned then.
                 </p>
               </Card>
+
+              <Button variant="ghost" fullWidth onClick={() => navigate(`/traveller/manage/${booking.id}`)}>
+                ⚙️ Manage / Cancel Booking
+              </Button>
+
+              <AiConciergePanel city={hotel.city} memory={guest.memory} />
+
+              <NextTripPanel city={hotel.city} memory={guest.memory} />
             </>
           )}
         </div>

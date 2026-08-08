@@ -5,10 +5,12 @@ import type {
   Booking,
   ConciergeRequest,
   ConciergeRequestStatus,
+  ConciergeRequestType,
   GuestFeedback,
   HousekeepingTask,
   HousekeepingTaskStatus,
   Invoice,
+  InvoiceLineItemCategory,
   MockNotification,
   MockTransaction,
   NotificationChannel,
@@ -18,6 +20,7 @@ import type {
   ReadyToRoomStatus,
   RefundRecord,
   Room,
+  RoomCategory,
   RoomStatus,
 } from '@ayana/shared-types';
 import { makeId, makeMockRef } from '@ayana/shared-utils';
@@ -56,6 +59,10 @@ function emptyReadyToRoom(): ReadyToRoomStatus {
     qrCode: null,
     estimatedArrival: null,
   };
+}
+
+function nightsOf(checkInDate: string, checkOutDate: string): number {
+  return Math.max(1, Math.round((new Date(checkOutDate).getTime() - new Date(checkInDate).getTime()) / 86_400_000));
 }
 
 /** Quoted price for a category/hotel — no specific room is known yet at booking time. */
@@ -463,6 +470,64 @@ export function withConciergeRequest(
   };
 }
 
+/**
+ * One guest-facing service booking. The request the hotel team acts on and the charge on
+ * the folio are created together, so a spa slot can never end up as a request nobody
+ * billed — or a charge nobody was asked to deliver. Used by the app and the kiosk alike,
+ * which is why the same booking shows on the phone whichever surface placed it.
+ */
+export function withServiceBooked(
+  data: EngineData,
+  payload: {
+    bookingId: string;
+    guestId: string;
+    hotelId: string;
+    requestType: ConciergeRequestType;
+    details: string;
+    description: string;
+    /** 0 for services settled elsewhere, e.g. a free table reservation or cash to the driver. */
+    amount: number;
+    chargeCategory: InvoiceLineItemCategory;
+  },
+  source: ActivitySource,
+): { data: EngineData; request: ConciergeRequest } {
+  const { data: withRequest, request } = withConciergeRequest(
+    data,
+    {
+      bookingId: payload.bookingId,
+      guestId: payload.guestId,
+      hotelId: payload.hotelId,
+      type: payload.requestType,
+      details: payload.details,
+    },
+    source,
+  );
+
+  const charged =
+    payload.amount > 0
+      ? withCharge(
+          withRequest,
+          { bookingId: payload.bookingId, description: payload.description, category: payload.chargeCategory, amount: payload.amount },
+          source,
+        )
+      : withRequest;
+
+  return {
+    request,
+    data: {
+      ...charged,
+      notifications: pushNotification(
+        charged,
+        payload.guestId,
+        'Service booked',
+        payload.amount > 0
+          ? `${payload.details} — ₹${payload.amount.toLocaleString('en-IN')} added to your room bill.`
+          : `${payload.details} — confirmed.`,
+      ),
+    },
+  };
+}
+
 function withOverrideLog(
   data: EngineData,
   payload: { staffId: string; action: OverrideAction; bookingId: string; reason: string },
@@ -670,6 +735,205 @@ export function withBookingCancelled(
     overrideLog: [...data.overrideLog, override],
     activityLog: [...data.activityLog, logEntry(source, 'Booking cancelled', booking.id, booking.hotelId)],
     notifications: pushNotification(data, booking.guestId, 'Booking cancelled', 'Your booking has been cancelled. Please contact us if this is unexpected.'),
+  };
+}
+
+/**
+ * Guest-initiated cancellation, available at any point before the stay starts. The refund
+ * is quoted against the hotel's published ladder in the app *before* the guest confirms
+ * and passed in here, so what they were shown is exactly what gets recorded. Any room
+ * already held for the booking goes straight back into sellable inventory.
+ */
+export function withGuestCancellation(
+  data: EngineData,
+  payload: { bookingId: string; refundAmount: number; reason: string },
+  source: ActivitySource,
+): EngineData {
+  const booking = data.bookings.find((b) => b.id === payload.bookingId);
+  if (!booking) return data;
+
+  const updatedBooking: Booking = { ...booking, status: 'cancelled' };
+  const heldRoomId = booking.roomId;
+
+  const base: EngineData = {
+    ...data,
+    bookings: data.bookings.map((b) => (b.id === booking.id ? updatedBooking : b)),
+    rooms: heldRoomId
+      ? data.rooms.map((r) => (r.id === heldRoomId ? { ...r, status: 'ready' as RoomStatus } : r))
+      : data.rooms,
+    activityLog: [...data.activityLog, logEntry(source, `Booking cancelled by guest — ${payload.reason}`, booking.id, booking.hotelId)],
+    notifications: pushNotification(
+      data,
+      booking.guestId,
+      'Booking cancelled',
+      payload.refundAmount > 0
+        ? `Your booking is cancelled. ₹${payload.refundAmount.toLocaleString('en-IN')} will be refunded to your original payment method.`
+        : 'Your booking is cancelled. No refund applies under the hotel’s cancellation policy.',
+    ),
+  };
+
+  if (payload.refundAmount <= 0) return base;
+  return withRefundIssued(base, { bookingId: booking.id, amount: payload.refundAmount, reason: payload.reason }, source).data;
+}
+
+/**
+ * Guest changes dates or party size. Re-prices at the booking's existing nightly rate and
+ * posts the difference (or a credit) to the folio immediately, so the cost of the change
+ * is visible right away rather than surfacing as a surprise at checkout.
+ */
+export function withBookingModified(
+  data: EngineData,
+  payload: { bookingId: string; checkInDate: string; checkOutDate: string; guestsCount: number },
+  source: ActivitySource,
+): EngineData {
+  const booking = data.bookings.find((b) => b.id === payload.bookingId);
+  if (!booking) return data;
+
+  const oldNights = nightsOf(booking.checkInDate, booking.checkOutDate);
+  const newNights = nightsOf(payload.checkInDate, payload.checkOutDate);
+  const nightlyRate = Math.round(booking.totalAmount / oldNights);
+  const difference = nightlyRate * (newNights - oldNights);
+
+  const priced =
+    difference !== 0
+      ? withCharge(
+          data,
+          {
+            bookingId: booking.id,
+            description: difference > 0 ? `Stay extended to ${newNights} night(s)` : `Stay shortened to ${newNights} night(s)`,
+            category: 'room',
+            amount: difference,
+          },
+          source,
+        )
+      : data;
+
+  const current = priced.bookings.find((b) => b.id === booking.id) ?? booking;
+  const updatedBooking: Booking = {
+    ...current,
+    checkInDate: payload.checkInDate,
+    checkOutDate: payload.checkOutDate,
+    guestsCount: payload.guestsCount,
+  };
+
+  return {
+    ...priced,
+    bookings: priced.bookings.map((b) => (b.id === booking.id ? updatedBooking : b)),
+    activityLog: [...priced.activityLog, logEntry(source, 'Booking modified by guest', booking.id, booking.hotelId)],
+    notifications: pushNotification(
+      priced,
+      booking.guestId,
+      'Booking updated',
+      `Your stay is now ${newNights} night(s) for ${payload.guestsCount} guest(s).`,
+    ),
+  };
+}
+
+/**
+ * Guest asks to move up a category from the app — including mid-stay. A physical room move
+ * needs a human, so this raises a Front Office task and drops the booking back to 'pending'
+ * allocation rather than inventing a room number. The guest keeps their current room (and
+ * working key) until staff confirm the move.
+ */
+export function withRoomUpgradeRequested(
+  data: EngineData,
+  payload: { bookingId: string; newCategory: RoomCategory; extraAmount: number },
+  source: ActivitySource,
+): EngineData {
+  const booking = data.bookings.find((b) => b.id === payload.bookingId);
+  if (!booking) return data;
+
+  const charged =
+    payload.extraAmount > 0
+      ? withCharge(
+          data,
+          { bookingId: booking.id, description: `Upgrade to ${payload.newCategory} room`, category: 'room', amount: payload.extraAmount },
+          source,
+        )
+      : data;
+
+  const { data: withRequest } = withConciergeRequest(
+    charged,
+    {
+      bookingId: booking.id,
+      guestId: booking.guestId,
+      hotelId: booking.hotelId,
+      type: 'special_request',
+      details: `Room upgrade to ${payload.newCategory}${booking.status === 'checked_in' ? ' — guest is in-house, room move required' : ''}`,
+    },
+    source,
+  );
+
+  const current = withRequest.bookings.find((b) => b.id === booking.id) ?? booking;
+  const updatedBooking: Booking = {
+    ...current,
+    roomCategory: payload.newCategory,
+    allocationStatus: 'pending',
+  };
+
+  return {
+    ...withRequest,
+    bookings: withRequest.bookings.map((b) => (b.id === booking.id ? updatedBooking : b)),
+    activityLog: [...withRequest.activityLog, logEntry(source, `Upgrade requested to ${payload.newCategory}`, booking.id, booking.hotelId)],
+    notifications: pushNotification(
+      withRequest,
+      booking.guestId,
+      'Upgrade requested',
+      `Front Office is arranging your move to a ${payload.newCategory} room. We'll confirm your new room number shortly.`,
+    ),
+  };
+}
+
+/**
+ * Kiosk upsell taken at check-in: the guest picks a higher category, pays on the spot and
+ * walks away with a new room number. Unlike the app's request flow this completes
+ * immediately, because a specific free room was chosen and settled at the machine.
+ */
+export function withRoomUpgradedNow(
+  data: EngineData,
+  payload: { bookingId: string; newCategory: RoomCategory; newRoomId: string; extraAmount: number; method: PaymentMethod },
+  source: ActivitySource,
+): EngineData {
+  const booking = data.bookings.find((b) => b.id === payload.bookingId);
+  if (!booking) return data;
+
+  const charged = withCharge(
+    data,
+    { bookingId: booking.id, description: `Room upgrade to ${payload.newCategory}`, category: 'room', amount: payload.extraAmount },
+    source,
+  );
+  const paid = withOutstandingPayment(
+    charged,
+    { bookingId: booking.id, method: payload.method, amount: payload.extraAmount },
+    source,
+  ).data;
+
+  const previousRoomId = booking.roomId;
+  const current = paid.bookings.find((b) => b.id === booking.id) ?? booking;
+  const updatedBooking: Booking = {
+    ...current,
+    roomCategory: payload.newCategory,
+    roomId: payload.newRoomId,
+    allocationStatus: 'allocated',
+    readyToRoom: { ...current.readyToRoom, roomReady: true },
+  };
+
+  return {
+    ...paid,
+    bookings: paid.bookings.map((b) => (b.id === booking.id ? updatedBooking : b)),
+    rooms: paid.rooms.map((r) => {
+      if (r.id === payload.newRoomId) return { ...r, status: 'occupied' as RoomStatus };
+      // The room they were about to take goes back on sale — they never occupied it.
+      if (previousRoomId && r.id === previousRoomId) return { ...r, status: 'ready' as RoomStatus };
+      return r;
+    }),
+    activityLog: [...paid.activityLog, logEntry(source, `Upgraded to ${payload.newCategory} at kiosk`, booking.id, booking.hotelId)],
+    notifications: pushNotification(
+      paid,
+      booking.guestId,
+      'Room upgraded',
+      `You've been upgraded to a ${payload.newCategory} room. Your new room number is in the app.`,
+    ),
   };
 }
 
