@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSimulationStore } from '@ayana/simulation-engine';
+import { categoryAvailability } from '@ayana/ai-engine';
 import type { BedType, RoomCategory, RoomView } from '@ayana/shared-types';
 import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
 import { useCurrentCorporate, useCurrentGuest, useHotel, useRoomsForHotelAndCategory } from '../hooks';
+import { useTripSearchStore } from '../tripSearchStore';
 
 const schema = z.object({
   checkInDate: z.string().min(1),
@@ -18,12 +20,6 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 const BED_LABEL: Record<string, string> = { twin: 'Twin beds', double: 'Double bed', king: 'King bed' };
-
-function defaultDate(offsetDays: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
-}
 
 export function Booking() {
   const { hotelId, category, view, bedType } = useParams<{
@@ -37,11 +33,21 @@ export function Booking() {
   const guest = useCurrentGuest();
   const corporate = useCurrentCorporate();
   const matchingRooms = useRoomsForHotelAndCategory(hotelId, category);
+  const allRooms = useSimulationStore((s) => s.rooms);
+  const bookings = useSimulationStore((s) => s.bookings);
   const createBooking = useSimulationStore((s) => s.createBooking);
+  const trip = useTripSearchStore();
+  const [soldOut, setSoldOut] = useState(false);
 
   const { register, handleSubmit, watch, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { checkInDate: defaultDate(2), checkOutDate: defaultDate(4), guestsCount: 2, paymentTier: 100 },
+    // Carried through from Search rather than re-asked — the guest already chose these.
+    defaultValues: {
+      checkInDate: trip.checkInDate,
+      checkOutDate: trip.checkOutDate,
+      guestsCount: trip.guestsCount,
+      paymentTier: 100,
+    },
   });
 
   const values = watch();
@@ -74,6 +80,23 @@ export function Booking() {
 
   function onSubmit(data: FormValues) {
     if (!guest || !hotel || !category || !view || !bedType) return;
+
+    // Re-check against live state: dates are editable here, and another tab could have
+    // taken the last room since this screen loaded.
+    const availability = categoryAvailability(
+      hotel.id,
+      category,
+      new Date(data.checkInDate).toISOString(),
+      new Date(data.checkOutDate).toISOString(),
+      allRooms,
+      bookings,
+    );
+    if (availability.availableRooms <= 0) {
+      setSoldOut(true);
+      return;
+    }
+    setSoldOut(false);
+
     const booking = createBooking({
       guestId: guest.id,
       hotelId: hotel.id,
@@ -162,6 +185,16 @@ export function Booking() {
             </div>
             <Badge tone="neutral">All amounts simulated — no real charge</Badge>
           </Card>
+
+          {soldOut && (
+            <Card className="border-red-300 bg-red-50">
+              <p className="text-sm font-medium text-red-700">No longer available</p>
+              <p className="text-xs text-red-600/80">
+                This category just sold out for the dates you picked. Change your dates, or go back and choose another
+                category.
+              </p>
+            </Card>
+          )}
 
           <Button type="submit" size="lg" fullWidth disabled={formState.isSubmitting}>
             Proceed to Payment

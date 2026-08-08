@@ -1,7 +1,11 @@
 import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useSimulationStore } from '@ayana/simulation-engine';
+import { hotelCanHostParty, hotelHasAvailability } from '@ayana/ai-engine';
 import { Badge, Button, Card } from '@ayana/shared-ui';
 import { useHotel } from '../hooks';
+import { TripCriteriaBar } from '../components/TripCriteriaBar';
+import { useTripSearchStore } from '../tripSearchStore';
 
 const MOCK_REVIEWS = [
   { author: 'Priya S.', rating: 5, text: 'Seamless check-in, exactly matched my AYANA Memory preferences.' },
@@ -12,8 +16,15 @@ export function HotelDetails() {
   const { hotelId } = useParams();
   const navigate = useNavigate();
   const hotel = useHotel(hotelId);
+  const rooms = useSimulationStore((s) => s.rooms);
+  const bookings = useSimulationStore((s) => s.bookings);
+  const { checkInDate, checkOutDate, guestsCount } = useTripSearchStore();
 
   if (!hotel) return null;
+
+  const available = hotelHasAvailability(hotel.id, checkInDate, checkOutDate, rooms, bookings);
+  const fitsParty = hotelCanHostParty(hotel.id, checkInDate, checkOutDate, guestsCount, rooms, bookings);
+  const bookable = available && fitsParty;
 
   return (
     <div className="min-h-screen bg-cream-50 pb-28">
@@ -35,6 +46,10 @@ export function HotelDetails() {
               <p className="text-sm text-ink-700/60">{hotel.address}</p>
             </div>
             {hotel.isFlagship && <Badge tone="gold">Flagship</Badge>}
+          </div>
+
+          <div className="mt-4">
+            <TripCriteriaBar compact />
           </div>
 
           <div className="mt-3 flex items-center gap-2 text-sm text-ink-700/70">
@@ -88,9 +103,21 @@ export function HotelDetails() {
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-900/10 bg-white/95 px-5 py-4 backdrop-blur">
         <div className="mx-auto max-w-md">
-          <Button fullWidth size="lg" onClick={() => navigate(`/traveller/hotel/${hotel.id}/rooms`)}>
-            Select Room — from ₹{hotel.priceFloor.toLocaleString('en-IN')}
+          <Button
+            fullWidth
+            size="lg"
+            disabled={!bookable}
+            onClick={() => navigate(`/traveller/hotel/${hotel.id}/rooms`)}
+          >
+            {bookable
+              ? `Select Room — from ₹${hotel.priceFloor.toLocaleString('en-IN')}`
+              : available
+                ? `No room sleeps ${guestsCount} on these dates`
+                : 'No rooms available for these dates'}
           </Button>
+          {!bookable && (
+            <p className="mt-1.5 text-center text-[11px] text-ink-700/50">Adjust your dates or party size above.</p>
+          )}
         </div>
       </div>
     </div>

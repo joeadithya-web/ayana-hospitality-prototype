@@ -7,6 +7,7 @@ import { Badge, Button, Card, MockTag, PageHeader } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useBooking, useCurrentGuest, useHotel, useRoom } from '../hooks';
 import { AiConciergePanel } from '../components/AiConciergePanel';
+import { ConciergeChat } from '../components/ConciergeChat';
 import { NextTripPanel } from '../components/NextTripPanel';
 import { ServiceBookingSheet } from '../components/ServiceBookingSheet';
 
@@ -204,6 +205,14 @@ export function Stay() {
               🚪 Checkout
             </Button>
           </section>
+
+          <ConciergeChat
+            city={hotel.city}
+            memory={guest.memory}
+            outstanding={outstanding}
+            guestFirstName={guest.fullName.split(' ')[0] ?? 'there'}
+            onBookService={(kind) => setServiceSheet({ open: true, kind })}
+          />
 
           {/* Suggested services */}
           <section>

@@ -167,7 +167,67 @@ function curatedDemoBookings(guests: Guest[], hotels: Hotel[], rooms: Room[], rn
   return bookings;
 }
 
-export function generateBookings(guests: Guest[], hotels: Hotel[], rooms: Room[], count = 140): Booking[] {
+/** A hotel with no room left at all, and one category sold out at the flagship. */
+const SOLD_OUT_HOTEL_ID = 'htl_windsor_blr';
+const SOLD_OUT_CATEGORY_HOTEL_ID = 'htl_springs';
+const SOLD_OUT_CATEGORY: RoomCategory = 'suite';
+/** Wide enough that any near-term dates a guest picks land inside it. */
+const SOLD_OUT_WINDOW_DAYS = 14;
+
+/**
+ * Fills specific hotels/categories to capacity so "no availability" is reachable on demand.
+ * Without this the seeded data is far too sparse to ever sell out — a category holds ~15
+ * rooms against a handful of overlapping bookings — and the unavailable states would never
+ * appear in a demo.
+ *
+ * Anchored to the real current date rather than the fixed TODAY constant the rest of this
+ * file uses, because the blackout has to cover whatever dates a guest actually picks today.
+ * One booking is created per physical room, so `categoryAvailability` sees genuine capacity
+ * exhaustion rather than a special-cased flag.
+ */
+function soldOutFixtures(guests: Guest[], hotels: Hotel[], rooms: Room[], rng: () => number): Booking[] {
+  const now = new Date();
+  const generatedGuests = guests.filter((g) => g.id.startsWith('guest_gen_'));
+  if (generatedGuests.length === 0) return [];
+
+  const bookings: Booking[] = [];
+
+  function fill(hotel: Hotel, categories: RoomCategory[]) {
+    categories.forEach((category) => {
+      const roomsInCategory = rooms.filter((r) => r.hotelId === hotel.id && r.category === category);
+      roomsInCategory.forEach(() => {
+        bookings.push(
+          buildBooking({
+            guest: pick(rng, generatedGuests),
+            hotel,
+            rooms,
+            room: null,
+            category,
+            view: pick(rng, VIEWS),
+            checkIn: daysFrom(now, 0),
+            checkOut: daysFrom(now, SOLD_OUT_WINDOW_DAYS),
+            status: 'confirmed',
+            paymentTier: 100,
+            rng,
+          }),
+        );
+      });
+    });
+  }
+
+  const soldOutHotel = hotels.find((h) => h.id === SOLD_OUT_HOTEL_ID);
+  if (soldOutHotel) {
+    const allCategories = [...new Set(rooms.filter((r) => r.hotelId === soldOutHotel.id).map((r) => r.category))];
+    fill(soldOutHotel, allCategories);
+  }
+
+  const flagship = hotels.find((h) => h.id === SOLD_OUT_CATEGORY_HOTEL_ID);
+  if (flagship) fill(flagship, [SOLD_OUT_CATEGORY]);
+
+  return bookings;
+}
+
+export function generateBookings(guests: Guest[], hotels: Hotel[], rooms: Room[], count = 260): Booking[] {
   const rng = seededRandom(9042);
   const curated = curatedDemoBookings(guests, hotels, rooms, rng);
 
@@ -176,7 +236,16 @@ export function generateBookings(guests: Guest[], hotels: Hotel[], rooms: Room[]
     const guest = pick(rng, generatedGuests);
     const hotel = pick(rng, hotels);
     const offsetRoll = rng();
-    const offset = offsetRoll < 0.4 ? -randomInt(rng, 3, 180) : offsetRoll < 0.55 ? 0 : randomInt(rng, 1, 90);
+    // Weighted toward the next few weeks so live availability counts look occupied rather
+    // than empty — most of the demand a guest searching today would actually compete with.
+    const offset =
+      offsetRoll < 0.2
+        ? -randomInt(rng, 3, 180)
+        : offsetRoll < 0.3
+          ? 0
+          : offsetRoll < 0.75
+            ? randomInt(rng, 1, 30)
+            : randomInt(rng, 31, 90);
     const nights = randomInt(rng, 1, 5);
     const status: BookingStatus = offset < 0 ? 'checked_out' : offset === 0 ? 'checked_in' : 'confirmed';
     const paymentTier = pick(rng, [100, 100, 50, 25] as const);
@@ -202,5 +271,5 @@ export function generateBookings(guests: Guest[], hotels: Hotel[], rooms: Room[]
     });
   });
 
-  return [...curated, ...background];
+  return [...curated, ...soldOutFixtures(guests, hotels, rooms, rng), ...background];
 }

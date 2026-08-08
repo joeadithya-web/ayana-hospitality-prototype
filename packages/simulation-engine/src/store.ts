@@ -62,7 +62,7 @@ import {
   withWaiveCharges,
 } from './mutators';
 
-const STORAGE_KEY = 'ayana-simulation-state-v7';
+const STORAGE_KEY = 'ayana-simulation-state-v8';
 
 /** Which app instance this browser tab is running — set once by each app's root on mount. */
 let activeSource: ActivitySource = typeof window === 'undefined' ? 'system' : 'traveller_app';

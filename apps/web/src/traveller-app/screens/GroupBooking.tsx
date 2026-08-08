@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { CATEGORY_LABEL, categoryNightlyPrice, nightsBetween } from '@ayana/ai-engine';
+import { CATEGORY_LABEL, categoryAvailability, categoryNightlyPrice, nightsBetween } from '@ayana/ai-engine';
 import { GROUP_BOOKING_MIN_GUESTS } from '@ayana/shared-types';
 import type { PaymentMethod, RoomCategory } from '@ayana/shared-types';
 import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
@@ -29,6 +29,7 @@ export function GroupBooking() {
   const corporate = useCurrentCorporate();
   const hotels = useSimulationStore((s) => s.hotels);
   const rooms = useSimulationStore((s) => s.rooms);
+  const bookings = useSimulationStore((s) => s.bookings);
   const createGroupBooking = useSimulationStore((s) => s.createGroupBooking);
   const payBooking = useSimulationStore((s) => s.payBooking);
 
@@ -58,7 +59,14 @@ export function GroupBooking() {
   const savings = (publishedNightly - contractedNightly) * nights * roomsNeeded;
 
   const availableInCategory = hotel
-    ? rooms.filter((r) => r.hotelId === hotel.id && r.category === category && r.status === 'ready').length
+    ? categoryAvailability(
+        hotel.id,
+        category,
+        new Date(checkIn).toISOString(),
+        new Date(checkOut).toISOString(),
+        rooms,
+        bookings,
+      ).availableRooms
     : 0;
   const enoughRooms = availableInCategory >= roomsNeeded;
   const wireTransfer = method === 'wire_transfer';

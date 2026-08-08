@@ -1,14 +1,11 @@
 import type { Booking, Guest, Room } from '@ayana/shared-types';
 import { scoreRoomsForGuest } from './roomRecommendation';
+import { overlaps } from './availability';
 
 export type AllocationEvaluation =
   | { kind: 'allocate'; room: Room }
   | { kind: 'delayed' }
   | { kind: 'overbooked' };
-
-function overlaps(aIn: string, aOut: string, bIn: string, bOut: string): boolean {
-  return new Date(aIn).getTime() < new Date(bOut).getTime() && new Date(bIn).getTime() < new Date(aOut).getTime();
-}
 
 /**
  * Decides what happens next for a booking still awaiting its specific room, purely from
