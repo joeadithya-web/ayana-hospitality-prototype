@@ -33,16 +33,26 @@ export function KioskCheckIn({ hotelId, onExit }: { hotelId: string; onExit: () 
 
   // Excludes bookings that can only ever dead-end at "Reservation Expired" — a guest
   // picking their own name should never be routed to a booking that's already unusable.
-  // Sorted so today's/soonest arrival ranks first, ahead of anything further out, so a
-  // same-named guest's freshest reservation isn't buried behind older ones by list order.
+  // Ranked so a reservation whose window has already opened (checkInDate <= now) beats one
+  // that hasn't yet — and among several that are all already arrivable (a guest can easily
+  // have more than one, e.g. an old confirmed booking never checked into plus a fresh one),
+  // the most recently made one wins, since that's almost always the one the guest means.
+  // Future (not-yet-arrivable) bookings fall back to soonest-first.
+  const now = Date.now();
   const candidates = bookings
     .filter(
       (b) =>
         b.hotelId === hotelId &&
         (b.status === 'pending_payment' || b.status === 'confirmed') &&
-        new Date(b.checkOutDate).getTime() >= Date.now(),
+        new Date(b.checkOutDate).getTime() >= now,
     )
-    .sort((a, b) => new Date(a.checkInDate).getTime() - new Date(b.checkInDate).getTime());
+    .sort((a, b) => {
+      const aArrivable = new Date(a.checkInDate).getTime() <= now;
+      const bArrivable = new Date(b.checkInDate).getTime() <= now;
+      if (aArrivable !== bArrivable) return aArrivable ? -1 : 1;
+      if (aArrivable) return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return new Date(a.checkInDate).getTime() - new Date(b.checkInDate).getTime();
+    });
 
   function fail(reason: KioskFailureReason) {
     setFailureReason(reason);
