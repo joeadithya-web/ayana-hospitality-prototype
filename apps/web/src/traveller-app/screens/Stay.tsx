@@ -8,7 +8,6 @@ import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useBooking, useCurrentGuest, useHotel, useRoom } from '../hooks';
 import { AiConciergePanel } from '../components/AiConciergePanel';
 import { ConciergeChat } from '../components/ConciergeChat';
-import { JourneyMissionCard } from '../components/JourneyMissionCard';
 import { NextTripPanel } from '../components/NextTripPanel';
 import { ServiceBookingSheet } from '../components/ServiceBookingSheet';
 
@@ -40,10 +39,8 @@ export function Stay() {
   const guest = useCurrentGuest();
   const invoices = useSimulationStore((s) => s.invoices);
   const conciergeRequests = useSimulationStore((s) => s.conciergeRequests);
-  const intentTasks = useSimulationStore((s) => s.intentTasks);
   const payOutstanding = useSimulationStore((s) => s.payOutstanding);
   const requestHousekeeping = useSimulationStore((s) => s.requestHousekeeping);
-  const requestConcierge = useSimulationStore((s) => s.requestConcierge);
 
   const [serviceSheet, setServiceSheet] = useState<{ open: boolean; kind?: ServiceKind }>({ open: false });
   const [payOpen, setPayOpen] = useState(false);
@@ -113,18 +110,6 @@ export function Stay() {
               <span className="capitalize">{booking.roomCategory} · {nights} night{nights === 1 ? '' : 's'}</span>
             </div>
           </Card>
-
-          {booking.intents.length > 0 && (
-            <JourneyMissionCard
-              booking={booking}
-              conciergeRequests={conciergeRequests}
-              intentTasks={intentTasks}
-              onArrange={(type, label) =>
-                requestConcierge({ bookingId: booking.id, guestId: guest.id, hotelId: hotel.id, type, details: label })
-              }
-              onSuggestSpa={() => setServiceSheet({ open: true, kind: 'spa' })}
-            />
-          )}
 
           {/* Live folio */}
           <section>

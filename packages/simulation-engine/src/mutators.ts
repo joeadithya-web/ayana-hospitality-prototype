@@ -3,9 +3,14 @@ import type {
   ActivitySource,
   AyanaMemory,
   Booking,
+  BusinessLeisure,
   ConciergeRequest,
   ConciergeRequestStatus,
   ConciergeRequestType,
+  CsiScore,
+  DietaryPreference,
+  FamilyMember,
+  Guest,
   GuestFeedback,
   HousekeepingTask,
   HousekeepingTaskStatus,
@@ -25,7 +30,7 @@ import type {
   RoomStatus,
 } from '@ayana/shared-types';
 import { makeId, makeMockRef } from '@ayana/shared-utils';
-import type { CreateBookingInput, CreateGroupBookingInput, EngineData, PostChargeInput, RequestConciergeInput } from './types';
+import type { CreateBookingInput, CreateGroupBookingInput, EngineData, PostChargeInput, RegisterGuestInput, RequestConciergeInput } from './types';
 
 function logEntry(
   source: ActivitySource,
@@ -36,7 +41,7 @@ function logEntry(
   return { id: makeId('log'), bookingId, hotelId, label, timestamp: new Date().toISOString(), source };
 }
 
-function pushNotification(data: EngineData, guestId: string, title: string, body: string): MockNotification[] {
+function pushNotification(data: EngineData, guestId: string, title: string, body: string, actionRoute?: string): MockNotification[] {
   const notification: MockNotification = {
     id: makeId('ntf'),
     guestId,
@@ -46,6 +51,7 @@ function pushNotification(data: EngineData, guestId: string, title: string, body
     isMock: true,
     sentAt: new Date().toISOString(),
     read: false,
+    actionRoute,
   };
   return [...data.notifications, notification];
 }
@@ -96,7 +102,7 @@ export function withBookingCreated(
   data: EngineData,
   input: CreateBookingInput,
   source: ActivitySource,
-): { data: EngineData; booking: Booking; intentTasks: IntentTask[] } {
+): { data: EngineData; booking: Booking; intentTasks: IntentTask[]; conciergeRequests: ConciergeRequest[] } {
   const nights = Math.max(
     1,
     Math.round((new Date(input.checkOutDate).getTime() - new Date(input.checkInDate).getTime()) / 86_400_000),
@@ -138,6 +144,9 @@ export function withBookingCreated(
     journeyGoal: input.journeyGoal ?? null,
     checkedInAt: null,
     intentMatch: input.intentMatch ?? [],
+    checkedOutAt: null,
+    feedbackReminderCount: 0,
+    lastFeedbackReminderAt: null,
     createdAt: new Date().toISOString(),
   };
 
@@ -159,13 +168,28 @@ export function withBookingCreated(
     completedAt: null,
   }));
 
+  // Concierge-arranged items a deepBuilt blueprint needs (cab, pickup, wake-up call) — honoured
+  // immediately at booking, same as the guest stating them out loud, with no click required.
+  const autoConciergeRequests: ConciergeRequest[] = (input.autoConciergeSeeds ?? []).map((seed) => ({
+    id: makeId('con'),
+    bookingId: booking.id,
+    guestId: booking.guestId,
+    hotelId: booking.hotelId,
+    type: seed.conciergeRequestType,
+    details: seed.label,
+    status: 'requested',
+    createdAt: new Date().toISOString(),
+  }));
+
   return {
     booking,
     intentTasks,
+    conciergeRequests: autoConciergeRequests,
     data: {
       ...data,
       bookings: [...data.bookings, booking],
       intentTasks: [...data.intentTasks, ...intentTasks],
+      conciergeRequests: [...data.conciergeRequests, ...autoConciergeRequests],
       activityLog: [...data.activityLog, logEntry(source, 'Booking created', booking.id, booking.hotelId)],
       notifications: pushNotification(
         data,
@@ -233,6 +257,9 @@ export function withGroupBookingCreated(
     journeyGoal: null,
     checkedInAt: null,
     intentMatch: [],
+    checkedOutAt: null,
+    feedbackReminderCount: 0,
+    lastFeedbackReminderAt: null,
     createdAt: new Date().toISOString(),
   }));
 
@@ -471,7 +498,7 @@ export function withCheckoutCompleted(data: EngineData, payload: { bookingId: st
   const booking = data.bookings.find((b) => b.id === payload.bookingId);
   if (!booking) return data;
   const invoice = findOrCreateInvoice(data, booking);
-  const updatedBooking: Booking = { ...booking, status: 'checked_out' };
+  const updatedBooking: Booking = { ...booking, status: 'checked_out', checkedOutAt: new Date().toISOString() };
   const updatedInvoice: Invoice = { ...invoice, issuedAt: new Date().toISOString() };
 
   return {
@@ -559,6 +586,35 @@ export function withRemoteIntentTaskInserted(data: EngineData, task: IntentTask,
     ...data,
     intentTasks: [...data.intentTasks, task],
     activityLog: [...data.activityLog, logEntry(source, `Intent task created: ${task.label}`, task.bookingId, task.hotelId)],
+  };
+}
+
+/**
+ * The moment a first-time guest fills in their profile — merged into the one pre-seeded
+ * placeholder record (`guest_demo_newcomer`) rather than minting a new id, so the demo stays
+ * repeatable. Everything they enter becomes part of their AYANA Memory profile from here on.
+ */
+export function withGuestRegistered(data: EngineData, input: RegisterGuestInput, source: ActivitySource): EngineData {
+  const guest = data.guests.find((g) => g.id === input.guestId);
+  if (!guest) return data;
+  const updated: Guest = {
+    ...guest,
+    fullName: input.fullName || guest.fullName,
+    email: input.email,
+    mobile: input.mobile,
+    familyMembers: input.familyMembers,
+    memory: {
+      ...guest.memory,
+      interests: input.interests,
+      dietaryPreference: input.dietaryPreference,
+      businessOrLeisure: input.businessOrLeisure,
+      consent: { sharedWithHotels: true, lastUpdated: new Date().toISOString() },
+    },
+  };
+  return {
+    ...data,
+    guests: data.guests.map((g) => (g.id === guest.id ? updated : g)),
+    activityLog: [...data.activityLog, logEntry(source, 'Guest registered', null, null)],
   };
 }
 
@@ -798,7 +854,7 @@ export function withManualCheckout(
 ): EngineData {
   const booking = data.bookings.find((b) => b.id === payload.bookingId);
   if (!booking) return data;
-  const updatedBooking: Booking = { ...booking, status: 'checked_out' };
+  const updatedBooking: Booking = { ...booking, status: 'checked_out', checkedOutAt: new Date().toISOString() };
   const override = withOverrideLog(data, { staffId: payload.staffId, action: 'force_checkout', bookingId: booking.id, reason: 'Manual checkout by Front Office' });
 
   return {
@@ -1176,7 +1232,7 @@ export function withRefundIssued(
 
 export function withFeedbackSubmitted(
   data: EngineData,
-  payload: { bookingId: string; rating: 1 | 2 | 3 | 4 | 5; comment: string },
+  payload: { bookingId: string; csiScore: CsiScore; derivedStarRating: 1 | 2 | 3 | 4 | 5; comment: string; followUpAnswer?: string },
   source: ActivitySource,
 ): { data: EngineData; feedback: GuestFeedback } {
   const booking = data.bookings.find((b) => b.id === payload.bookingId);
@@ -1187,8 +1243,10 @@ export function withFeedbackSubmitted(
     bookingId: booking.id,
     guestId: booking.guestId,
     hotelId: booking.hotelId,
-    rating: payload.rating,
+    csiScore: payload.csiScore,
+    derivedStarRating: payload.derivedStarRating,
     comment: payload.comment,
+    followUpAnswer: payload.followUpAnswer,
     submittedAt: new Date().toISOString(),
   };
 
@@ -1197,8 +1255,55 @@ export function withFeedbackSubmitted(
     data: {
       ...data,
       feedback: [...data.feedback, feedback],
-      activityLog: [...data.activityLog, logEntry(source, `Guest feedback submitted (${payload.rating}★)`, booking.id, booking.hotelId)],
+      activityLog: [...data.activityLog, logEntry(source, `Guest feedback submitted (CSI ${payload.csiScore}/10)`, booking.id, booking.hotelId)],
     },
+  };
+}
+
+const FEEDBACK_REMINDER_MAX = 3;
+const FEEDBACK_REMINDER_GAP_MS = 2 * 24 * 60 * 60 * 1000;
+
+/**
+ * Nudges a guest to leave feedback for any checked-out stay they haven't rated yet — at most
+ * 3 times, at least 2 real days apart, then never again. Runs on every Dashboard mount rather
+ * than a scheduled job (there's no simulated clock in this prototype), so it's a cheap no-op
+ * scan whenever nothing is due.
+ */
+export function withFeedbackReminderChecked(data: EngineData, guestId: string, source: ActivitySource): EngineData {
+  const now = Date.now();
+  const rated = new Set(data.feedback.map((f) => f.bookingId));
+  const due = data.bookings.filter((b) => {
+    if (b.guestId !== guestId || b.status !== 'checked_out' || !b.checkedOutAt) return false;
+    if (rated.has(b.id) || b.feedbackReminderCount >= FEEDBACK_REMINDER_MAX) return false;
+    const since = new Date(b.lastFeedbackReminderAt ?? b.checkedOutAt).getTime();
+    return now - since >= FEEDBACK_REMINDER_GAP_MS;
+  });
+  if (due.length === 0) return data;
+
+  const dueIds = new Set(due.map((b) => b.id));
+  const hotelName = (hotelId: string) => data.hotels.find((h) => h.id === hotelId)?.name ?? 'your recent stay';
+  let notifications = data.notifications;
+  let activityLog = data.activityLog;
+  for (const booking of due) {
+    notifications = pushNotification(
+      { ...data, notifications },
+      guestId,
+      'How was your stay?',
+      `Tell us about your stay at ${hotelName(booking.hotelId)} — it only takes a moment.`,
+      `/traveller/checkout/${booking.id}`,
+    );
+    activityLog = [...activityLog, logEntry(source, 'Feedback reminder sent', booking.id, booking.hotelId)];
+  }
+
+  return {
+    ...data,
+    notifications,
+    activityLog,
+    bookings: data.bookings.map((b) =>
+      dueIds.has(b.id)
+        ? { ...b, feedbackReminderCount: b.feedbackReminderCount + 1, lastFeedbackReminderAt: new Date(now).toISOString() }
+        : b,
+    ),
   };
 }
 

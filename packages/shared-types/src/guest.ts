@@ -43,7 +43,14 @@ export interface AyanaMemory {
   favouriteServices: string[];
   businessOrLeisure: BusinessLeisure;
   specialRequests: string[];
+  /** Free-form activity/experience interests captured at registration — e.g. "Fine Dining", "Adventure". */
+  interests: string[];
   consent: MemoryConsent;
+}
+
+export interface FamilyMember {
+  name: string;
+  relationship: string;
 }
 
 export interface Guest {
@@ -57,6 +64,8 @@ export interface Guest {
   isReturning: boolean;
   loyalty: LoyaltyStatus;
   memory: AyanaMemory;
+  /** Travelling companions declared at registration — empty for guests who never opted in. */
+  familyMembers: FamilyMember[];
   previousStayIds: string[];
   /** Present only for profileType 'corporate' | 'group'; simplified demo scenario, not full approval workflow. */
   groupOrCorporateContext: GroupCorporateContext | null;

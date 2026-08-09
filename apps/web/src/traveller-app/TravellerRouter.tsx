@@ -4,6 +4,7 @@ import { setActiveSource, useSimulationStore } from '@ayana/simulation-engine';
 import { RequireAuth } from './RequireAuth';
 import { Splash } from './screens/Splash';
 import { Login } from './screens/Login';
+import { Registration } from './screens/Registration';
 import { Dashboard } from './screens/Dashboard';
 import { Search } from './screens/Search';
 import { HotelDetails } from './screens/HotelDetails';
@@ -38,6 +39,7 @@ export function TravellerRouter() {
       <Route index element={<IndexRedirect />} />
       <Route path="splash" element={<Splash />} />
       <Route path="login" element={<Login />} />
+      <Route path="register" element={<Registration />} />
       <Route path="dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
       <Route path="search" element={<RequireAuth><Search /></RequireAuth>} />
       <Route path="hotel/:hotelId" element={<RequireAuth><HotelDetails /></RequireAuth>} />

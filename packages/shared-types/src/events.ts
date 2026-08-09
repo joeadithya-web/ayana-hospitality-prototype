@@ -9,6 +9,7 @@ export type SimulationEventType =
   | 'payment_received'
   | 'identity_verified'
   | 'memory_updated'
+  | 'guest_registered'
   | 'room_allocated'
   | 'room_overbooked'
   | 'room_delayed'

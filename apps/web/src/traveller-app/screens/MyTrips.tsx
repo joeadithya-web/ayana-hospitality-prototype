@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { intentTemplateById } from '@ayana/ai-engine';
 import { Badge, Card, EmptyState, PageHeader } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useCurrentGuest } from '../hooks';
@@ -90,7 +89,7 @@ export function MyTrips() {
                 <Badge tone={STATUS_TONE[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
               </div>
 
-              {(booking.groupRef || booking.corporateId || booking.intents.length > 0) && (
+              {(booking.groupRef || booking.corporateId) && (
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {booking.groupRef && (
                     <Badge tone="gold">
@@ -98,11 +97,6 @@ export function MyTrips() {
                     </Badge>
                   )}
                   {booking.corporateId && <Badge tone="neutral">🏢 Corporate account</Badge>}
-                  {booking.intents.length > 0 && (
-                    <Badge tone="springs">
-                      🎯 {intentTemplateById(booking.intents.find((i) => i.role === 'primary')?.templateId ?? '')?.label ?? 'Journey'}
-                    </Badge>
-                  )}
                 </div>
               )}
 

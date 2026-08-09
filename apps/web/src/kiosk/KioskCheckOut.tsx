@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useSimulationStore } from '@ayana/simulation-engine';
+import { deriveStarRatingFromCsi } from '@ayana/ai-engine';
+import type { CsiScore } from '@ayana/shared-types';
 import { Badge, Button } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { FaceScanStep, GuestIdentityHeader, KioskPaymentStep, ReservationPicker, RevealableRoom } from './kioskShared';
@@ -20,11 +22,15 @@ export function KioskCheckOut({ hotelId, onExit }: { hotelId: string; onExit: ()
   const completeCheckout = useSimulationStore((s) => s.completeCheckout);
   const extendStay = useSimulationStore((s) => s.extendStay);
   const issueRefund = useSimulationStore((s) => s.issueRefund);
+  const submitFeedback = useSimulationStore((s) => s.submitFeedback);
 
   const [step, setStep] = useState<Step>('face');
   const [activeBookingId, setActiveBookingId] = useState<string | null>(null);
   const [extendNights, setExtendNights] = useState(1);
   const [refundIssued, setRefundIssued] = useState(0);
+  const [csiScore, setCsiScore] = useState<CsiScore | null>(null);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackSent, setFeedbackSent] = useState(false);
 
   const activeBooking = bookings.find((b) => b.id === activeBookingId) ?? null;
   const activeGuest = activeBooking ? guests.find((g) => g.id === activeBooking.guestId) : null;
@@ -231,6 +237,70 @@ export function KioskCheckOut({ hotelId, onExit }: { hotelId: string; onExit: ()
           {refundIssued > 0 && (
             <Badge tone="gold">{formatINR(refundIssued)} refund issued to your original payment method</Badge>
           )}
+
+          {feedbackSent ? (
+            <p className="text-sm text-springs-400">Thank you for your feedback!</p>
+          ) : (
+            <div className="w-full rounded-xl2 border border-white/10 bg-white/5 px-5 py-4 text-left">
+              <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-cream-50/60">
+                Customer Satisfaction Index — Scale 1 to 10
+              </p>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as CsiScore[]).map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setCsiScore(n)}
+                    className={`flex h-8 w-8 flex-none items-center justify-center rounded-full text-xs font-semibold ${
+                      csiScore === n ? 'bg-gold-500 text-ink-950' : 'bg-white/10 text-cream-50/70'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+
+              {csiScore === 10 && (
+                <p className="mt-3 text-center text-sm text-springs-400">Thank you — we're glad your stay was great!</p>
+              )}
+
+              {csiScore !== null && csiScore <= 9 && (
+                <>
+                  <p className="mt-3 text-xs text-cream-50/70">
+                    {csiScore === 9
+                      ? "Thanks and we value your experience but we are here to hear you. Tell us what are the improvements we can make to serve you better next time."
+                      : 'Please tell us — what are the things that we need to improve to increase the score — we are happy to serve you better.'}
+                  </p>
+                  <textarea
+                    className="mt-2 w-full rounded-lg border border-white/15 bg-white/5 p-2.5 text-sm text-cream-50"
+                    placeholder="Tell us more (optional)…"
+                    rows={2}
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                  />
+                </>
+              )}
+
+              {csiScore !== null && (
+                <Button
+                  fullWidth
+                  className="mt-3"
+                  onClick={() => {
+                    submitFeedback(
+                      activeBooking.id,
+                      csiScore,
+                      deriveStarRatingFromCsi(csiScore),
+                      feedbackText,
+                      csiScore < 10 ? feedbackText || undefined : undefined,
+                    );
+                    setFeedbackSent(true);
+                  }}
+                >
+                  Submit Feedback
+                </Button>
+              )}
+            </div>
+          )}
+
           <Button size="lg" variant="secondary" onClick={onExit}>
             Done
           </Button>

@@ -62,6 +62,18 @@ export function Login() {
                 <span className="text-ink-700/40">→</span>
               </Card>
             ))}
+            <Card
+              padded
+              className="flex cursor-pointer items-center gap-3 border-dashed border-gold-500/40 bg-gold-500/5"
+              onClick={() => navigate('/traveller/register?guestId=guest_demo_newcomer')}
+            >
+              <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-gold-500/15 text-lg">✨</span>
+              <div className="flex-1 text-left">
+                <p className="font-medium text-ink-900">New Guest</p>
+                <p className="text-xs text-ink-700/50">Start your AYANA journey — tell us about you</p>
+              </div>
+              <span className="text-ink-700/40">→</span>
+            </Card>
           </div>
 
           <div className="flex items-center gap-3 text-xs text-ink-700/40">

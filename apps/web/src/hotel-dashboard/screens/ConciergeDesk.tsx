@@ -1,9 +1,19 @@
 import { ConciergeRequestList } from '../components/ConciergeRequestList';
+import { IntentMatchPanel } from '../components/IntentMatchPanel';
 import { IntentTaskList } from '../components/IntentTaskList';
 
 export function ConciergeDesk() {
   return (
     <div className="flex flex-col gap-6">
+      <section>
+        <h2 className="mb-2 font-display text-base font-semibold text-ink-950">Guest Purpose &amp; Match Score</h2>
+        <p className="mb-3 text-xs text-ink-700/50">
+          What the guest told us at booking, and AYANA's honest match against real availability and amenities —
+          never shown to the guest.
+        </p>
+        <IntentMatchPanel />
+      </section>
+
       <ConciergeRequestList
         types={[
           'airport_pickup',

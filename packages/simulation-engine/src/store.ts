@@ -7,6 +7,7 @@ import type {
   ConciergeRequest,
   ConciergeRequestStatus,
   ConciergeRequestType,
+  CsiScore,
   FailureScenarioId,
   GuestFeedback,
   HousekeepingTask,
@@ -22,7 +23,7 @@ import type {
   RoomStatus,
 } from '@ayana/shared-types';
 import { simulationBus } from './broadcast';
-import type { CreateBookingInput, CreateGroupBookingInput, EngineData, PostChargeInput } from './types';
+import type { CreateBookingInput, CreateGroupBookingInput, EngineData, PostChargeInput, RegisterGuestInput } from './types';
 import {
   withBookingCancelled,
   withBookingCreated,
@@ -36,7 +37,9 @@ import {
   withCheckoutCompleted,
   withConciergeRequest,
   withConciergeStatusUpdate,
+  withFeedbackReminderChecked,
   withFeedbackSubmitted,
+  withGuestRegistered,
   withGuestCheckedIn,
   withHousekeepingRequest,
   withHousekeepingTaskUpdate,
@@ -106,6 +109,7 @@ export interface EngineActions {
   logoutCorporate: () => void;
   createGroupBooking: (input: CreateGroupBookingInput) => Booking[];
   updateMemory: (guestId: string, patch: Partial<AyanaMemory>) => void;
+  registerGuest: (input: RegisterGuestInput) => void;
   createBooking: (input: CreateBookingInput) => Booking;
   payBooking: (bookingId: string, method: PaymentMethod, amount: number) => MockTransaction;
   setRoomStatus: (roomId: string, status: RoomStatus) => void;
@@ -162,7 +166,14 @@ export interface EngineActions {
   updateConciergeStatus: (requestId: string, status: ConciergeRequestStatus) => void;
   updateIntentTask: (taskId: string, status: IntentTask['status']) => void;
   issueRefund: (bookingId: string, amount: number, reason: string) => RefundRecord;
-  submitFeedback: (bookingId: string, rating: 1 | 2 | 3 | 4 | 5, comment: string) => GuestFeedback;
+  submitFeedback: (
+    bookingId: string,
+    csiScore: CsiScore,
+    derivedStarRating: 1 | 2 | 3 | 4 | 5,
+    comment: string,
+    followUpAnswer?: string,
+  ) => GuestFeedback;
+  checkFeedbackReminders: (guestId: string) => void;
   setActiveFailureScenario: (scenario: FailureScenarioId | null) => void;
 }
 
@@ -199,13 +210,20 @@ export const useSimulationStore = create<EngineStore>()((set, get) => ({
     simulationBus.publish('memory_updated', { guestId, patch });
   },
 
+  registerGuest: (input) => {
+    const next = withGuestRegistered(get(), input, currentSource());
+    set(next);
+    simulationBus.publish('guest_registered', input);
+  },
+
   createBooking: (input) => {
-    const { data, booking, intentTasks } = withBookingCreated(get(), input, currentSource());
+    const { data, booking, intentTasks, conciergeRequests } = withBookingCreated(get(), input, currentSource());
     set(data);
     simulationBus.publish('booking_created', booking);
     // Replayed the same way group-booking rooms are — one event per entity so remote tabs
     // insert the exact same ids rather than regenerating their own.
     intentTasks.forEach((task) => simulationBus.publish('intent_task_created', task));
+    conciergeRequests.forEach((request) => simulationBus.publish('concierge_request_created', request));
     return booking;
   },
 
@@ -410,11 +428,16 @@ export const useSimulationStore = create<EngineStore>()((set, get) => ({
     return refund;
   },
 
-  submitFeedback: (bookingId, rating, comment) => {
-    const { data, feedback } = withFeedbackSubmitted(get(), { bookingId, rating, comment }, currentSource());
+  submitFeedback: (bookingId, csiScore, derivedStarRating, comment, followUpAnswer) => {
+    const payload = { bookingId, csiScore, derivedStarRating, comment, followUpAnswer };
+    const { data, feedback } = withFeedbackSubmitted(get(), payload, currentSource());
     set(data);
-    simulationBus.publish('feedback_submitted', { bookingId, rating, comment });
+    simulationBus.publish('feedback_submitted', payload);
     return feedback;
+  },
+
+  checkFeedbackReminders: (guestId) => {
+    set(withFeedbackReminderChecked(get(), guestId, currentSource()));
   },
 
   setActiveFailureScenario: (scenario) => {
@@ -489,6 +512,9 @@ simulationBus.subscribe((event) => {
       break;
     case 'memory_updated':
       useSimulationStore.setState(withMemoryUpdate(state, event.payload as any, 'system'));
+      break;
+    case 'guest_registered':
+      useSimulationStore.setState(withGuestRegistered(state, event.payload as any, 'system'));
       break;
     case 'concierge_request_created':
       useSimulationStore.setState(withRemoteConciergeRequestInserted(state, event.payload as ConciergeRequest, 'system'));

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { hotelCanHostParty, hotelHasAvailability } from '@ayana/ai-engine';
+import { computeHotelGuestRating, hotelCanHostParty, hotelHasAvailability } from '@ayana/ai-engine';
 import { Badge, Card, PageHeader } from '@ayana/shared-ui';
 import type { HotelCity, HotelSegment, StarRating } from '@ayana/shared-types';
 import { TravellerShell } from '../TravellerShell';
@@ -17,6 +17,7 @@ export function Search() {
   const hotels = useSimulationStore((s) => s.hotels);
   const rooms = useSimulationStore((s) => s.rooms);
   const bookings = useSimulationStore((s) => s.bookings);
+  const feedback = useSimulationStore((s) => s.feedback);
   const { checkInDate, checkOutDate, guestsCount } = useTripSearchStore();
 
   const [nameQuery, setNameQuery] = useState('');
@@ -34,18 +35,28 @@ export function Search() {
    * specific hotel is asking about *that* hotel, so it's always shown, marked unavailable
    * rather than silently missing, which would read as a broken search.
    */
+  const ratingByHotelId = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof computeHotelGuestRating>>();
+    for (const hotel of hotels) map.set(hotel.id, computeHotelGuestRating(hotel.id, feedback, hotel));
+    return map;
+  }, [hotels, feedback]);
+
   const results = useMemo(() => {
     if (isNameSearch) {
       return hotels.filter((h) => h.name.toLowerCase().includes(query));
     }
-    return hotels.filter((hotel) => {
-      if (city !== 'all' && hotel.city !== city) return false;
-      if (stars.size > 0 && !stars.has(hotel.starRating)) return false;
-      if (segments.size > 0 && !hotel.segment.some((s) => segments.has(s))) return false;
-      if (hotel.priceFloor > maxPrice) return false;
-      return hotelCanHostParty(hotel.id, checkInDate, checkOutDate, guestsCount, rooms, bookings);
-    });
-  }, [hotels, rooms, bookings, isNameSearch, query, city, stars, segments, maxPrice, checkInDate, checkOutDate, guestsCount]);
+    // Highest-rated hotels surface first — AYANA nudging guests toward the properties that
+    // have actually earned it, not just whatever order the seed data happens to be in.
+    return hotels
+      .filter((hotel) => {
+        if (city !== 'all' && hotel.city !== city) return false;
+        if (stars.size > 0 && !stars.has(hotel.starRating)) return false;
+        if (segments.size > 0 && !hotel.segment.some((s) => segments.has(s))) return false;
+        if (hotel.priceFloor > maxPrice) return false;
+        return hotelCanHostParty(hotel.id, checkInDate, checkOutDate, guestsCount, rooms, bookings);
+      })
+      .sort((a, b) => (ratingByHotelId.get(b.id)?.rating ?? 0) - (ratingByHotelId.get(a.id)?.rating ?? 0));
+  }, [hotels, rooms, bookings, isNameSearch, query, city, stars, segments, maxPrice, checkInDate, checkOutDate, guestsCount, ratingByHotelId]);
 
   function toggle<T>(set: Set<T>, value: T, setter: (s: Set<T>) => void) {
     const next = new Set(set);
@@ -160,7 +171,10 @@ export function Search() {
                 <div className="mt-2 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs text-ink-700/60">
                     <Badge tone="neutral">{hotel.starRating}★</Badge>
-                    <span>{hotel.reviewRating} ({hotel.reviewCount})</span>
+                    <span>
+                      {ratingByHotelId.get(hotel.id)?.rating.toFixed(1) ?? hotel.reviewRating} (
+                      {ratingByHotelId.get(hotel.id)?.reviewCount ?? hotel.reviewCount})
+                    </span>
                   </div>
                   <p className="text-sm font-semibold text-ink-900">from ₹{hotel.priceFloor.toLocaleString('en-IN')}</p>
                 </div>

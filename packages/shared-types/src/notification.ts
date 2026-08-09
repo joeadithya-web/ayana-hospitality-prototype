@@ -10,4 +10,6 @@ export interface MockNotification {
   isMock: true;
   sentAt: string;
   read: boolean;
+  /** Traveller-app route to open when the guest taps this notification, if any. */
+  actionRoute?: string;
 }

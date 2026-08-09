@@ -9,3 +9,4 @@ export * from './policy';
 export * from './travelRecommendations';
 export * from './conciergeChat';
 export * from './intentEngine';
+export * from './feedbackEngine';

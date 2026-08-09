@@ -4,6 +4,7 @@ import type {
   Booking,
   BookingIntent,
   ConciergeRequest,
+  ConciergeRequestType,
   Hotel,
   IntentCategory,
   IntentMatchAssessment,
@@ -99,6 +100,21 @@ export function intentTaskSeedsForTemplate(templateId: string): { label: string;
   return blueprintTemplate(templateId)
     .filter((item) => item.kind === 'intent_task' && item.department)
     .map((item) => ({ label: item.label, department: item.department as StaffRole }));
+}
+
+/**
+ * The concierge-arranged half of a deepBuilt blueprint — cab/pickup/wake-up-call type items —
+ * resolved into real ConciergeRequests at booking time so they're honoured immediately, with
+ * no guest click required. Derived from `blueprintTemplate` for the same reason as
+ * `intentTaskSeedsForTemplate`: the seed and the checklist item it resolves against can never
+ * drift out of sync.
+ */
+export function autoConciergeSeedsForTemplate(
+  templateId: string,
+): { conciergeRequestType: ConciergeRequestType; label: string }[] {
+  return blueprintTemplate(templateId)
+    .filter((item) => item.kind === 'concierge_request' && item.conciergeRequestType)
+    .map((item) => ({ conciergeRequestType: item.conciergeRequestType as ConciergeRequestType, label: item.label }));
 }
 
 const BUSINESS_FACILITY_AMENITIES = ['Business Centre', 'Banquet Halls', 'Executive Lounge'];

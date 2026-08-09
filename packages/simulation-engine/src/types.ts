@@ -30,6 +30,8 @@ export interface CreateBookingInput {
   intentTaskSeeds?: { label: string; department: import('@ayana/shared-types').StaffRole }[];
   /** One entry per attached Intent — computed by the app from `assessIntentMatch` in @ayana/ai-engine, stored verbatim. */
   intentMatch?: import('@ayana/shared-types').IntentMatchAssessment[];
+  /** Concierge-arranged items a deepBuilt blueprint needs — computed by the app from `autoConciergeSeedsForTemplate` in @ayana/ai-engine. Materialized into real ConciergeRequests at booking time so they're honoured without a guest click. */
+  autoConciergeSeeds?: { conciergeRequestType: import('@ayana/shared-types').ConciergeRequestType; label: string }[];
 }
 
 export interface CreateGroupBookingInput {
@@ -58,4 +60,15 @@ export interface RequestConciergeInput {
   hotelId: string;
   type: import('@ayana/shared-types').ConciergeRequestType;
   details: string;
+}
+
+export interface RegisterGuestInput {
+  guestId: string;
+  fullName: string;
+  email: string;
+  mobile: string;
+  familyMembers: import('@ayana/shared-types').FamilyMember[];
+  interests: string[];
+  dietaryPreference: import('@ayana/shared-types').DietaryPreference;
+  businessOrLeisure: import('@ayana/shared-types').BusinessLeisure;
 }

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { blendIntentMatchScore, intentTemplateById } from '@ayana/ai-engine';
-import type { PaymentMethod } from '@ayana/shared-types';
+import { deriveStarRatingFromCsi } from '@ayana/ai-engine';
+import type { CsiScore, PaymentMethod } from '@ayana/shared-types';
 import { Badge, Button, Card, MockTag, PageHeader } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useBooking, useHotel } from '../hooks';
@@ -25,7 +25,8 @@ export function Checkout() {
   const submitFeedback = useSimulationStore((s) => s.submitFeedback);
 
   const [method, setMethod] = useState<PaymentMethod>('upi');
-  const [feedback, setFeedback] = useState({ rating: 5, comment: '' });
+  const [csiScore, setCsiScore] = useState<CsiScore | null>(null);
+  const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
 
   const invoice = useMemo(() => invoices.find((i) => i.bookingId === bookingId), [invoices, bookingId]);
@@ -37,9 +38,6 @@ export function Checkout() {
   const outstanding = Math.max(0, totalAmount - amountPaid);
   const isCheckedOut = booking.status === 'checked_out';
   const voucherCode = `VOU-${booking.id.slice(-6).toUpperCase()}`;
-
-  const primaryIntent = booking.intents.find((i) => i.role === 'primary');
-  const blendedScore = blendIntentMatchScore(booking.intents, booking.intentMatch);
 
   return (
     <div className="min-h-screen bg-cream-50 pb-10">
@@ -104,49 +102,6 @@ export function Checkout() {
                 </Card>
               </section>
 
-              {primaryIntent && (
-                <section>
-                  <h2 className="mb-2 font-display text-base font-semibold text-ink-950">Your Journey Recap</h2>
-                  <Card>
-                    {booking.journeyGoal && (
-                      <p className="mb-3 rounded-lg bg-cream-100 px-3 py-2 text-xs italic text-ink-700/70">“{booking.journeyGoal}”</p>
-                    )}
-
-                    {booking.intents.map((intent) => {
-                      const match = booking.intentMatch.find((m) => m.templateId === intent.templateId);
-                      return (
-                        <div key={intent.templateId} className="mb-3 last:mb-0">
-                          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-700/60">
-                            {intentTemplateById(intent.templateId)?.label ?? 'Intent'} · {intent.role === 'primary' ? 'Primary' : 'Secondary'}
-                          </p>
-                          {match && match.totalCount > 0 ? (
-                            <div className="flex flex-col gap-1">
-                              {match.items.map((item) => (
-                                <div key={item.id} className="flex flex-col text-xs">
-                                  <span className={item.matched ? 'text-ink-900' : 'text-ink-700/70'}>
-                                    {item.matched ? '✓' : '△'} {item.label}
-                                  </span>
-                                  {item.note && <span className="pl-4 text-ink-700/50">{item.note}</span>}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-ink-700/50">Not yet assessable for this journey type.</p>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                    <div className="mt-1 flex items-center justify-between border-t border-ink-900/10 pt-3">
-                      <span className="text-sm font-medium text-ink-900">Intent Match Score</span>
-                      {blendedScore !== null ? <Badge tone="gold">{blendedScore}%</Badge> : <Badge tone="neutral">Not yet available</Badge>}
-                    </div>
-
-                    <p className="mt-3 text-xs italic text-ink-700/50">Matched against real availability at the time you booked.</p>
-                  </Card>
-                </section>
-              )}
-
               <section>
                 <h2 className="mb-2 font-display text-base font-semibold text-ink-950">Voucher</h2>
                 <Card className="text-center">
@@ -161,23 +116,70 @@ export function Checkout() {
                   <Card className="text-center text-sm text-springs-600">Thank you for your feedback!</Card>
                 ) : (
                   <Card className="flex flex-col gap-3">
-                    <div className="flex justify-center gap-1 text-2xl">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <button key={n} onClick={() => setFeedback((f) => ({ ...f, rating: n }))}>
-                          {n <= feedback.rating ? '★' : '☆'}
+                    <p className="text-xs font-medium uppercase tracking-wide text-ink-700/60">
+                      Customer Satisfaction Index — Scale 1 to 10
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as CsiScore[]).map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setCsiScore(n)}
+                          className={`flex h-8 w-8 flex-none items-center justify-center rounded-full text-xs font-semibold ${
+                            csiScore === n ? 'bg-gold-500 text-ink-950' : 'bg-ink-900/5 text-ink-700/70'
+                          }`}
+                        >
+                          {n}
                         </button>
                       ))}
                     </div>
-                    <textarea
-                      className="rounded-lg border border-ink-900/15 p-2.5 text-sm"
-                      placeholder="Tell us about your stay…"
-                      rows={2}
-                      value={feedback.comment}
-                      onChange={(e) => setFeedback((f) => ({ ...f, comment: e.target.value }))}
-                    />
+
+                    {csiScore === 10 && (
+                      <p className="text-center text-sm text-springs-600">Thank you — we're glad your stay was great!</p>
+                    )}
+
+                    {csiScore === 9 && (
+                      <>
+                        <p className="text-xs text-ink-700/70">
+                          Thanks and we value your experience but we are here to hear you. Tell us what are the improvements
+                          we can make to serve you better next time.
+                        </p>
+                        <textarea
+                          className="rounded-lg border border-ink-900/15 p-2.5 text-sm"
+                          placeholder="Tell us more (optional)…"
+                          rows={2}
+                          value={feedbackText}
+                          onChange={(e) => setFeedbackText(e.target.value)}
+                        />
+                      </>
+                    )}
+
+                    {csiScore !== null && csiScore <= 8 && (
+                      <>
+                        <p className="text-xs text-ink-700/70">
+                          Please tell us — what are the things that we need to improve to increase the score — we are happy
+                          to serve you better.
+                        </p>
+                        <textarea
+                          className="rounded-lg border border-ink-900/15 p-2.5 text-sm"
+                          placeholder="Tell us more (optional)…"
+                          rows={2}
+                          value={feedbackText}
+                          onChange={(e) => setFeedbackText(e.target.value)}
+                        />
+                      </>
+                    )}
+
                     <Button
+                      disabled={csiScore === null}
                       onClick={() => {
-                        submitFeedback(booking.id, feedback.rating as 1 | 2 | 3 | 4 | 5, feedback.comment);
+                        if (csiScore === null) return;
+                        submitFeedback(
+                          booking.id,
+                          csiScore,
+                          deriveStarRatingFromCsi(csiScore),
+                          feedbackText,
+                          csiScore < 10 ? feedbackText || undefined : undefined,
+                        );
                         setFeedbackSent(true);
                       }}
                     >

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import type { Booking, Hotel } from '@ayana/shared-types';
@@ -13,6 +13,14 @@ export function Dashboard() {
   const bookings = useSimulationStore((s) => s.bookings);
   const hotels = useSimulationStore((s) => s.hotels);
   const notifications = useSimulationStore((s) => s.notifications);
+  const checkFeedbackReminders = useSimulationStore((s) => s.checkFeedbackReminders);
+
+  // A guest who checked out without rating their stay gets nudged — capped and paced inside
+  // the mutator itself, so this is a cheap no-op scan on every visit once nothing's due.
+  useEffect(() => {
+    if (guest) checkFeedbackReminders(guest.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guest?.id]);
 
   if (!guest) return null;
 

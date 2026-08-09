@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { assessIntentMatch, categoryAvailability, INTENT_CATALOG, INTENT_CATEGORY_LABEL, intentTaskSeedsForTemplate, intentTemplateById } from '@ayana/ai-engine';
+import { assessIntentMatch, autoConciergeSeedsForTemplate, categoryAvailability, INTENT_CATALOG, INTENT_CATEGORY_LABEL, intentTaskSeedsForTemplate, intentTemplateById } from '@ayana/ai-engine';
 import type { BedType, BookingIntent, IntentCategory, RoomCategory, RoomView } from '@ayana/shared-types';
 import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
 import { useCurrentCorporate, useCurrentGuest, useHotel, useRoomsForHotelAndCategory } from '../hooks';
@@ -149,6 +149,7 @@ export function Booking() {
       intents,
       journeyGoal: journeyGoal.trim() || null,
       intentTaskSeeds: primaryTemplate?.deepBuilt ? intentTaskSeedsForTemplate(primaryTemplate.id) : [],
+      autoConciergeSeeds: primaryTemplate?.deepBuilt ? autoConciergeSeedsForTemplate(primaryTemplate.id) : [],
       intentMatch,
     });
     navigate(`/traveller/payment/${booking.id}`);

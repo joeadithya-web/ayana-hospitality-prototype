@@ -43,6 +43,7 @@ function categoryPrice(rooms: Room[], hotelId: string, category: RoomCategory): 
  * `roomId` stays null until allocation happens later, near arrival.
  */
 function buildBooking(params: {
+  id?: string;
   guest: Guest;
   hotel: Hotel;
   rooms: Room[];
@@ -54,15 +55,17 @@ function buildBooking(params: {
   status: BookingStatus;
   paymentTier: PaymentTier;
   rng: () => number;
+  /** Overrides the derived checkedOutAt for status 'checked_out' — used to backdate a demo booking for the feedback-reminder flow. */
+  checkedOutAtOverride?: string;
 }): Booking {
-  const { guest, hotel, rooms, room, category, view, checkIn, checkOut, status, paymentTier, rng } = params;
+  const { id, guest, hotel, rooms, room, category, view, checkIn, checkOut, status, paymentTier, rng, checkedOutAtOverride } = params;
   const nights = Math.max(1, Math.round((checkOut.getTime() - checkIn.getTime()) / 86_400_000));
   const nightlyPrice = room ? room.basePrice : categoryPrice(rooms, hotel.id, category);
   const totalAmount = nightlyPrice * nights;
   const amountPaid = status === 'checked_out' || status === 'checked_in' ? totalAmount : Math.round((totalAmount * paymentTier) / 100);
 
   return {
-    id: makeId('bkg'),
+    id: id ?? makeId('bkg'),
     guestId: guest.id,
     hotelId: hotel.id,
     roomCategory: category,
@@ -100,6 +103,9 @@ function buildBooking(params: {
     journeyGoal: null,
     checkedInAt: status === 'checked_in' || status === 'checked_out' ? checkIn.toISOString() : null,
     intentMatch: [],
+    checkedOutAt: status === 'checked_out' ? (checkedOutAtOverride ?? checkOut.toISOString()) : null,
+    feedbackReminderCount: 0,
+    lastFeedbackReminderAt: null,
     createdAt: daysFrom(checkIn, -randomInt(rng, 3, 30)).toISOString(),
   };
 }
@@ -166,6 +172,30 @@ function curatedDemoBookings(guests: Guest[], hotels: Hotel[], rooms: Room[], rn
     });
     bookings.push(pastBooking);
     meera.previousStayIds.push(pastBooking.id);
+  }
+
+  if (aditya && orchid) {
+    // A stay checked out ~3 real days ago with no feedback yet — so the feedback-reminder
+    // system (which paces off real elapsed time) has something to fire on immediately in a
+    // fresh demo session, rather than only being provable after actually waiting 2 real days.
+    const reminderRoom = roomForHotel(rooms, orchid.id, rng);
+    const overdueBooking = buildBooking({
+      id: 'bkg_demo_overdue_feedback',
+      guest: aditya,
+      hotel: orchid,
+      rooms,
+      room: reminderRoom,
+      category: reminderRoom.category,
+      view: reminderRoom.view,
+      checkIn: daysFrom(TODAY, -10),
+      checkOut: daysFrom(TODAY, -7),
+      status: 'checked_out',
+      paymentTier: 100,
+      rng,
+      checkedOutAtOverride: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    bookings.push(overdueBooking);
+    aditya.previousStayIds.push(overdueBooking.id);
   }
 
   return bookings;

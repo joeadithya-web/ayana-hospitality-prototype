@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useSimulationStore } from '@ayana/simulation-engine';
+import { calculateNps } from '@ayana/ai-engine';
 import { Card, MockTag } from '@ayana/shared-ui';
 import { formatINR } from '@ayana/shared-utils';
 import { useHotelBookings, useHotelHousekeepingTasks, useHotelRooms } from '../hooks';
@@ -47,7 +48,8 @@ export function Reports() {
   }, [bookings, rooms, transactions, bookingIds]);
 
   const hotelFeedback = feedback.filter((f) => f.hotelId === hotelId);
-  const avgSatisfaction = hotelFeedback.length > 0 ? hotelFeedback.reduce((s, f) => s + f.rating, 0) / hotelFeedback.length : null;
+  const avgSatisfaction = hotelFeedback.length > 0 ? hotelFeedback.reduce((s, f) => s + f.derivedStarRating, 0) / hotelFeedback.length : null;
+  const nps = calculateNps(hotelFeedback);
 
   const activeBookings = bookings.filter((b) => b.status !== 'cancelled' && b.status !== 'rejected');
   const repeatCount = activeBookings.filter((b) => guestById.get(b.guestId)?.isReturning).length;
@@ -80,6 +82,7 @@ export function Reports() {
 
   const stats = [
     { label: 'Guest Satisfaction', value: avgSatisfaction !== null ? `${avgSatisfaction.toFixed(1)} ★` : 'No data yet', sub: `${hotelFeedback.length} reviews` },
+    { label: 'Net Promoter Score', value: nps !== null ? `${nps > 0 ? '+' : ''}${nps}` : 'No data yet', sub: `${hotelFeedback.length} responses` },
     { label: 'Repeat Guest Rate', value: `${repeatRate}%`, sub: `${repeatCount} of ${activeBookings.length} bookings` },
     { label: 'Upsell Revenue', value: formatINR(upsellRevenue), sub: 'From add-on charges' },
     { label: 'Outstanding Balances', value: outstandingCount, sub: formatINR(outstandingTotal) },

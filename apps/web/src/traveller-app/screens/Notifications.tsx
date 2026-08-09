@@ -25,7 +25,11 @@ export function Notifications() {
             <EmptyState icon="🔔" title="No notifications yet" description="Booking, payment, and stay updates (all simulated) will appear here." />
           )}
           {mine.map((n) => (
-            <Card key={n.id} className="flex items-start gap-3">
+            <Card
+              key={n.id}
+              className={`flex items-start gap-3 ${n.actionRoute ? 'cursor-pointer' : ''}`}
+              onClick={() => n.actionRoute && navigate(n.actionRoute)}
+            >
               <span className="text-lg">{CHANNEL_ICON[n.channel]}</span>
               <div className="flex-1">
                 <p className="text-sm font-medium text-ink-900">{n.title}</p>

@@ -66,5 +66,11 @@ export interface Booking {
   checkedInAt: string | null;
   /** One entry per attached Intent, computed once at booking time from real availability/amenity data. Empty for bookings with no Intent. */
   intentMatch: IntentMatchAssessment[];
+  /** The real moment checkout completed — null until then. Used to pace feedback reminders. */
+  checkedOutAt: string | null;
+  /** How many "please leave feedback" reminders have been sent for this stay — capped at 3. */
+  feedbackReminderCount: number;
+  /** When the most recent feedback reminder was sent — null until the first one fires. */
+  lastFeedbackReminderAt: string | null;
   createdAt: string;
 }
