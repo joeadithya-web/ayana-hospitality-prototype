@@ -304,3 +304,22 @@ export function shouldSuggestSpaAfterMeeting(items: BlueprintItem[], now: Date =
   const meetingDone = items.find((i) => i.id === 'meeting_room')?.done;
   return Boolean(meetingDone) && now.getHours() < 15;
 }
+
+const JOURNEY_GOAL_FOLLOWUP: Record<IntentCategory, string> = {
+  business: "Got it — I'll make sure the room, connectivity and any facilities line up for that. Anything else specific I should know, like timing or who else is involved?",
+  celebration: "That sounds special — we'll make sure the little touches are in place. Anything particular you'd like us to know?",
+  health_wellness: "Understood — we'll keep things calm and unhurried for you. Anything else that would help?",
+  leisure: "Lovely — we'll make sure you have everything for a relaxed stay. Anything else on your mind?",
+  life_travel: "Noted — we'll keep things simple and smooth for you. Anything else I should know?",
+};
+
+/**
+ * Deterministic, rule-based replies for the booking-time "what would make this journey
+ * successful" conversation — no LLM, matching the rest of this prototype. `turn` is how many
+ * guest messages have been sent so far in this chat: the first gets a category-tailored
+ * follow-up question, every one after that gets a closing acknowledgement.
+ */
+export function journeyGoalReply(turn: number, category: IntentCategory): string {
+  if (turn <= 1) return JOURNEY_GOAL_FOLLOWUP[category];
+  return "Perfect, noted — we've got this. See you at check-in!";
+}

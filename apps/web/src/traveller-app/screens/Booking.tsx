@@ -8,6 +8,7 @@ import { assessIntentMatch, autoConciergeSeedsForTemplate, categoryAvailability,
 import type { BedType, BookingIntent, IntentCategory, RoomCategory, RoomView } from '@ayana/shared-types';
 import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
 import { useCurrentCorporate, useCurrentGuest, useHotel, useRoomsForHotelAndCategory } from '../hooks';
+import { JourneyGoalChat } from '../components/JourneyGoalChat';
 import { useTripSearchStore } from '../tripSearchStore';
 
 const INTENT_CATEGORIES = Array.from(new Set(INTENT_CATALOG.map((t) => t.category))) as IntentCategory[];
@@ -46,6 +47,7 @@ export function Booking() {
   const [primaryIntentId, setPrimaryIntentId] = useState<string | null>(null);
   const [secondaryIntentId, setSecondaryIntentId] = useState<string | null>(null);
   const [journeyGoal, setJourneyGoal] = useState('');
+  const primaryIntentCategory = primaryIntentId ? intentTemplateById(primaryIntentId)?.category ?? null : null;
 
   function toggleIntent(id: string) {
     if (primaryIntentId === id) {
@@ -239,19 +241,10 @@ export function Booking() {
               ))}
             </div>
 
-            {primaryIntentId && (
-              <label className="mt-3 flex flex-col gap-1.5">
-                <span className="text-xs font-medium uppercase tracking-wide text-ink-700/60">
-                  What would make this journey successful?
-                </span>
-                <textarea
-                  value={journeyGoal}
-                  onChange={(e) => setJourneyGoal(e.target.value)}
-                  rows={2}
-                  placeholder="e.g. I have the biggest presentation of my career tomorrow."
-                  className="rounded-lg border border-ink-900/15 px-3 py-2.5 text-sm"
-                />
-              </label>
+            {primaryIntentId && primaryIntentCategory && (
+              <div className="mt-3">
+                <JourneyGoalChat key={primaryIntentId} category={primaryIntentCategory} onChange={setJourneyGoal} />
+              </div>
             )}
           </Card>
 
