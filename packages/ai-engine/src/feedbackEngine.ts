@@ -24,6 +24,35 @@ export function calculateNps(feedback: GuestFeedback[]): number | null {
   return Math.round(((promoters - detractors) / feedback.length) * 100);
 }
 
+export interface NpsBreakdown {
+  nps: number | null;
+  total: number;
+  promoters: number;
+  passives: number;
+  detractors: number;
+  promoterPct: number;
+  passivePct: number;
+  detractorPct: number;
+}
+
+/** Same NPS math as calculateNps, plus the promoter/passive/detractor counts and shares behind it. */
+export function calculateNpsBreakdown(feedback: GuestFeedback[]): NpsBreakdown {
+  const total = feedback.length;
+  const promoters = feedback.filter((f) => f.csiScore >= 9).length;
+  const detractors = feedback.filter((f) => f.csiScore <= 6).length;
+  const passives = total - promoters - detractors;
+  return {
+    nps: total === 0 ? null : Math.round(((promoters - detractors) / total) * 100),
+    total,
+    promoters,
+    passives,
+    detractors,
+    promoterPct: total === 0 ? 0 : Math.round((promoters / total) * 100),
+    passivePct: total === 0 ? 0 : Math.round((passives / total) * 100),
+    detractorPct: total === 0 ? 0 : Math.round((detractors / total) * 100),
+  };
+}
+
 export interface HotelGuestRating {
   rating: number;
   reviewCount: number;

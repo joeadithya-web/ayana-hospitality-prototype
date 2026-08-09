@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { calculateNps } from '@ayana/ai-engine';
+import { calculateNpsBreakdown } from '@ayana/ai-engine';
 import { Card, MockTag } from '@ayana/shared-ui';
 import { formatINR } from '@ayana/shared-utils';
 import { useHotelBookings, useHotelHousekeepingTasks, useHotelRooms } from '../hooks';
@@ -49,7 +49,8 @@ export function Reports() {
 
   const hotelFeedback = feedback.filter((f) => f.hotelId === hotelId);
   const avgSatisfaction = hotelFeedback.length > 0 ? hotelFeedback.reduce((s, f) => s + f.derivedStarRating, 0) / hotelFeedback.length : null;
-  const nps = calculateNps(hotelFeedback);
+  const npsBreakdown = calculateNpsBreakdown(hotelFeedback);
+  const nps = npsBreakdown.nps;
 
   const activeBookings = bookings.filter((b) => b.status !== 'cancelled' && b.status !== 'rejected');
   const repeatCount = activeBookings.filter((b) => guestById.get(b.guestId)?.isReturning).length;
@@ -80,9 +81,10 @@ export function Reports() {
     .filter((v): v is number => v !== null && v >= 0);
   const avgCheckInMinutes = checkInTimes.length > 0 ? Math.round(checkInTimes.reduce((s, v) => s + v, 0) / checkInTimes.length) : null;
 
-  const stats = [
+  const statsBeforeNps = [
     { label: 'Guest Satisfaction', value: avgSatisfaction !== null ? `${avgSatisfaction.toFixed(1)} ★` : 'No data yet', sub: `${hotelFeedback.length} reviews` },
-    { label: 'Net Promoter Score', value: nps !== null ? `${nps > 0 ? '+' : ''}${nps}` : 'No data yet', sub: `${hotelFeedback.length} responses` },
+  ];
+  const statsAfterNps = [
     { label: 'Repeat Guest Rate', value: `${repeatRate}%`, sub: `${repeatCount} of ${activeBookings.length} bookings` },
     { label: 'Upsell Revenue', value: formatINR(upsellRevenue), sub: 'From add-on charges' },
     { label: 'Outstanding Balances', value: outstandingCount, sub: formatINR(outstandingTotal) },
@@ -93,7 +95,47 @@ export function Reports() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-3 gap-4">
-        {stats.map((s) => (
+        {statsBeforeNps.map((s) => (
+          <Card key={s.label}>
+            <p className="text-xs uppercase tracking-wide text-ink-700/50">{s.label}</p>
+            <p className="mt-1 font-display text-xl font-semibold text-ink-950">{s.value}</p>
+            <p className="mt-0.5 text-[11px] text-ink-700/40">{s.sub}</p>
+          </Card>
+        ))}
+
+        <Card>
+          <p className="text-xs uppercase tracking-wide text-ink-700/50">Net Promoter Score</p>
+          <p className="mt-1 font-display text-xl font-semibold text-ink-950">
+            {nps !== null ? `${nps > 0 ? '+' : ''}${nps}` : 'No data yet'}
+          </p>
+          <p className="mt-0.5 text-[11px] text-ink-700/40">{hotelFeedback.length} responses</p>
+
+          {npsBreakdown.total > 0 && (
+            <div className="mt-3">
+              <div className="flex h-2 w-full overflow-hidden rounded-full bg-ink-900/5">
+                {npsBreakdown.promoterPct > 0 && <div className="h-full bg-[#2F6F62]" style={{ width: `${npsBreakdown.promoterPct}%` }} />}
+                {npsBreakdown.passivePct > 0 && <div className="h-full bg-[#D9C27E]" style={{ width: `${npsBreakdown.passivePct}%` }} />}
+                {npsBreakdown.detractorPct > 0 && <div className="h-full bg-[#B4473E]" style={{ width: `${npsBreakdown.detractorPct}%` }} />}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-700/60">
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-[#2F6F62]" />
+                  Promoters {npsBreakdown.promoters} ({npsBreakdown.promoterPct}%)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-[#D9C27E]" />
+                  Passives {npsBreakdown.passives} ({npsBreakdown.passivePct}%)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-[#B4473E]" />
+                  Detractors {npsBreakdown.detractors} ({npsBreakdown.detractorPct}%)
+                </span>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        {statsAfterNps.map((s) => (
           <Card key={s.label}>
             <p className="text-xs uppercase tracking-wide text-ink-700/50">{s.label}</p>
             <p className="mt-1 font-display text-xl font-semibold text-ink-950">{s.value}</p>
