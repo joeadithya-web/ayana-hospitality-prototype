@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import {
-  calculateIntentFulfilment,
+  blendIntentMatchScore,
   intentTemplateById,
   mergeBlueprints,
   resolveExperienceBlueprint,
   shouldSuggestSpaAfterMeeting,
+  summarizeBlueprint,
 } from '@ayana/ai-engine';
 import type { Booking, ConciergeRequest, ConciergeRequestType, IntentTask } from '@ayana/shared-types';
 import { Badge, Card, ProgressSteps } from '@ayana/shared-ui';
@@ -39,14 +40,24 @@ export function JourneyMissionCard({ booking, conciergeRequests, intentTasks, on
 
   const primaryTemplate = intentTemplateById(primary.templateId);
   const secondaryTemplate = secondary ? intentTemplateById(secondary.templateId) : undefined;
-  const overallFulfilment = calculateIntentFulfilment(merged);
   const suggestSpa = primaryTemplate?.deepBuilt && shouldSuggestSpaAfterMeeting(primaryBlueprint);
+
+  // The score is decided once, at booking, from real availability/amenity data — stored on
+  // the booking, never recomputed from live task completion.
+  const blendedScore = blendIntentMatchScore(booking.intents, booking.intentMatch);
+  const unmatchedNotes = new Map(
+    booking.intentMatch.flatMap((m) => m.items.filter((i) => !i.matched && i.note).map((i) => [i.label, i.note!] as const)),
+  );
+
+  const executionSummary = primaryTemplate?.deepBuilt
+    ? summarizeBlueprint(merged, { bookingId: booking.id, intentTasks, checkedInAt: booking.checkedInAt })
+    : null;
 
   return (
     <section>
       <div className="mb-2 flex items-center justify-between">
         <h2 className="font-display text-base font-semibold text-ink-950">My Journey</h2>
-        <Badge tone="gold">Intent Match Score {overallFulfilment}%</Badge>
+        <Badge tone="gold">{blendedScore !== null ? `Intent Match Score ${blendedScore}%` : 'Match score not yet available'}</Badge>
       </div>
 
       <Card>
@@ -61,8 +72,22 @@ export function JourneyMissionCard({ booking, conciergeRequests, intentTasks, on
 
         {primaryTemplate?.deepBuilt ? (
           <div className="mt-3 border-t border-ink-900/10 pt-3">
+            {executionSummary && (
+              <div className="mb-3 flex flex-col gap-1">
+                {executionSummary.buckets.map((b) => (
+                  <div key={b.kind} className="flex items-center justify-between text-xs">
+                    <span className="text-ink-700/60">{b.label}</span>
+                    <span className="font-medium text-ink-900">
+                      {b.done} of {b.total} so far
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-700/60">Today's Mission</p>
-            <ProgressSteps steps={merged.map((item) => ({ key: item.id, label: item.label, done: item.done }))} />
+            <ProgressSteps
+              steps={merged.map((item) => ({ key: item.id, label: item.label, done: item.done, note: unmatchedNotes.get(item.label) }))}
+            />
 
             {merged.some((item) => item.kind === 'concierge_request' && !item.done) && (
               <div className="mt-3 flex flex-col gap-1.5">

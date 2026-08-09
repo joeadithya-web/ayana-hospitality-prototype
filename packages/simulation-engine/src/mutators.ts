@@ -137,6 +137,7 @@ export function withBookingCreated(
     intents: input.intents ?? [],
     journeyGoal: input.journeyGoal ?? null,
     checkedInAt: null,
+    intentMatch: input.intentMatch ?? [],
     createdAt: new Date().toISOString(),
   };
 
@@ -231,6 +232,7 @@ export function withGroupBookingCreated(
     intents: [],
     journeyGoal: null,
     checkedInAt: null,
+    intentMatch: [],
     createdAt: new Date().toISOString(),
   }));
 

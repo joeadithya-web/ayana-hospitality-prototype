@@ -28,6 +28,8 @@ export interface CreateBookingInput {
   journeyGoal?: string | null;
   /** Hotel-side tasks a deepBuilt blueprint needs at booking time — computed by the app from `intentTaskSeedsForTemplate` in @ayana/ai-engine, kept out of this package so the engine stays business-logic-free. */
   intentTaskSeeds?: { label: string; department: import('@ayana/shared-types').StaffRole }[];
+  /** One entry per attached Intent — computed by the app from `assessIntentMatch` in @ayana/ai-engine, stored verbatim. */
+  intentMatch?: import('@ayana/shared-types').IntentMatchAssessment[];
 }
 
 export interface CreateGroupBookingInput {

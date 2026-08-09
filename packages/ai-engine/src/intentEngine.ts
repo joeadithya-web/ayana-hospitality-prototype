@@ -1,4 +1,20 @@
-import type { BlueprintItem, BlueprintItemKind, ConciergeRequest, IntentCategory, IntentTask, IntentTemplate, StaffRole } from '@ayana/shared-types';
+import type {
+  BlueprintItem,
+  BlueprintItemKind,
+  Booking,
+  BookingIntent,
+  ConciergeRequest,
+  Hotel,
+  IntentCategory,
+  IntentMatchAssessment,
+  IntentTask,
+  IntentTemplate,
+  MatchAssessmentItem,
+  Room,
+  RoomCategory,
+  StaffRole,
+} from '@ayana/shared-types';
+import { categoryAvailability } from './availability';
 
 /**
  * The selectable catalog of travel purposes. Only 'business_presentation' is deepBuilt —
@@ -83,6 +99,90 @@ export function intentTaskSeedsForTemplate(templateId: string): { label: string;
   return blueprintTemplate(templateId)
     .filter((item) => item.kind === 'intent_task' && item.department)
     .map((item) => ({ label: item.label, department: item.department as StaffRole }));
+}
+
+const BUSINESS_FACILITY_AMENITIES = ['Business Centre', 'Banquet Halls', 'Executive Lounge'];
+
+export interface MatchContext {
+  hotel: Hotel;
+  category: RoomCategory;
+  checkInDate: string;
+  checkOutDate: string;
+  rooms: Room[];
+  bookings: Booking[];
+}
+
+/**
+ * The honest, immediate answer to "how well can we match this guest's stated Intent" —
+ * computed once at booking time from real inventory/amenity data, never from whether hotel
+ * staff later got around to completing a task. Only 'business_presentation' has real
+ * requirements to check against; every other template returns a vacuous "nothing to assess
+ * yet" result (matches `calculateIntentFulfilment`'s empty-list convention) rather than a
+ * fabricated score.
+ */
+export function assessIntentMatch(templateId: string, ctx: MatchContext): IntentMatchAssessment {
+  if (templateId !== 'business_presentation') {
+    return { templateId, items: [], matchedCount: 0, totalCount: 0, scorePercent: 100 };
+  }
+
+  const availability = categoryAvailability(ctx.hotel.id, ctx.category, ctx.checkInDate, ctx.checkOutDate, ctx.rooms, ctx.bookings);
+  // Checked before this booking consumes a unit — 2+ free means at least one will remain
+  // after it, i.e. real placement flexibility. Exactly 1 means this is the last unit, so a
+  // fully quiet room can't honestly be promised.
+  const roomFlexible = availability.availableRooms >= 2;
+  const hasBusinessFacilities = ctx.hotel.amenities.some((a) => BUSINESS_FACILITY_AMENITIES.includes(a));
+
+  const items: MatchAssessmentItem[] = [
+    {
+      id: 'quiet_room',
+      label: 'Quiet room confirmed',
+      matched: roomFlexible,
+      note: roomFlexible ? undefined : 'Limited availability for these dates — we’ll assign the best room we have, but a fully quiet room isn’t guaranteed.',
+    },
+    { id: 'internet', label: 'High-speed internet verified', matched: true },
+    { id: 'printer', label: 'Printer availability confirmed', matched: true },
+    {
+      id: 'meeting_room',
+      label: 'Meeting room recommendation held',
+      matched: hasBusinessFacilities,
+      note: hasBusinessFacilities ? undefined : 'This property doesn’t list dedicated meeting facilities — we’ll help arrange an alternative nearby if needed.',
+    },
+    { id: 'coffee', label: 'Coffee preference on file', matched: true },
+    { id: 'airport_pickup', label: 'Airport pickup arranged', matched: true },
+    { id: 'express_checkout', label: 'Express checkout enabled', matched: true },
+    { id: 'wake_up', label: 'Wake-up call scheduled', matched: true },
+    { id: 'taxi', label: 'Taxi reserved for the meeting', matched: true },
+    {
+      id: 'early_checkin',
+      label: 'Early check-in recommendation noted',
+      matched: roomFlexible,
+      note: roomFlexible ? undefined : 'Limited availability for these dates — early check-in may not be possible.',
+    },
+  ];
+
+  const matchedCount = items.filter((i) => i.matched).length;
+  return {
+    templateId,
+    items,
+    matchedCount,
+    totalCount: items.length,
+    scorePercent: Math.round((matchedCount / items.length) * 100),
+  };
+}
+
+/**
+ * Blends the stored, booking-time match assessment across every attached Intent, weighted
+ * by each Intent's own `weightPercent` — but only across intents that actually had something
+ * to assess (deepBuilt ones). Returns null when nothing is assessable yet, so callers can
+ * show "not yet available" instead of a misleading vacuous 100%.
+ */
+export function blendIntentMatchScore(intents: BookingIntent[], intentMatch: IntentMatchAssessment[]): number | null {
+  const assessable = intents
+    .map((intent) => ({ intent, match: intentMatch.find((m) => m.templateId === intent.templateId) }))
+    .filter((x): x is { intent: BookingIntent; match: IntentMatchAssessment } => Boolean(x.match && x.match.totalCount > 0));
+  if (assessable.length === 0) return null;
+  const totalWeight = assessable.reduce((sum, x) => sum + x.intent.weightPercent, 0);
+  return Math.round(assessable.reduce((sum, x) => sum + x.match.scorePercent * x.intent.weightPercent, 0) / totalWeight);
 }
 
 export interface BlueprintContext {

@@ -50,3 +50,26 @@ export interface IntentTask {
   createdAt: string;
   completedAt: string | null;
 }
+
+/** One item of a booking-time feasibility check — decided once, from real availability/amenity data, never from staff activity during the stay. */
+export interface MatchAssessmentItem {
+  id: string;
+  label: string;
+  matched: boolean;
+  /** Present when matched is false — a factual, non-alarming explanation (e.g. "Limited availability for these dates"). */
+  note?: string;
+}
+
+/**
+ * The honest, immediate answer to "how well can we match this guest's stated Intent",
+ * computed once at booking time from real inventory/amenity data and stored on the
+ * Booking — never recomputed later, so it can't drift as unrelated bookings change live
+ * availability, and never fed by whether hotel staff got around to completing a task.
+ */
+export interface IntentMatchAssessment {
+  templateId: string;
+  items: MatchAssessmentItem[];
+  matchedCount: number;
+  totalCount: number;
+  scorePercent: number;
+}

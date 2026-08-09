@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { categoryAvailability, INTENT_CATALOG, INTENT_CATEGORY_LABEL, intentTaskSeedsForTemplate, intentTemplateById } from '@ayana/ai-engine';
+import { assessIntentMatch, categoryAvailability, INTENT_CATALOG, INTENT_CATEGORY_LABEL, intentTaskSeedsForTemplate, intentTemplateById } from '@ayana/ai-engine';
 import type { BedType, BookingIntent, IntentCategory, RoomCategory, RoomView } from '@ayana/shared-types';
 import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
 import { useCurrentCorporate, useCurrentGuest, useHotel, useRoomsForHotelAndCategory } from '../hooks';
@@ -123,6 +123,18 @@ export function Booking() {
     if (secondaryIntentId) intents.push({ templateId: secondaryIntentId, role: 'secondary', weightPercent: 30 });
     const primaryTemplate = primaryIntentId ? intentTemplateById(primaryIntentId) : undefined;
 
+    // Decided once, right now, from the same real availability/amenity data already on this
+    // screen — never recomputed later against whatever staff has or hasn't gotten to.
+    const matchCtx = {
+      hotel,
+      category,
+      checkInDate: new Date(data.checkInDate).toISOString(),
+      checkOutDate: new Date(data.checkOutDate).toISOString(),
+      rooms: allRooms,
+      bookings,
+    };
+    const intentMatch = intents.map((i) => assessIntentMatch(i.templateId, matchCtx));
+
     const booking = createBooking({
       guestId: guest.id,
       hotelId: hotel.id,
@@ -137,6 +149,7 @@ export function Booking() {
       intents,
       journeyGoal: journeyGoal.trim() || null,
       intentTaskSeeds: primaryTemplate?.deepBuilt ? intentTaskSeedsForTemplate(primaryTemplate.id) : [],
+      intentMatch,
     });
     navigate(`/traveller/payment/${booking.id}`);
   }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { calculateIntentFulfilment, intentTemplateById, mergeBlueprints, resolveExperienceBlueprint, summarizeBlueprint } from '@ayana/ai-engine';
+import { blendIntentMatchScore, intentTemplateById } from '@ayana/ai-engine';
 import type { PaymentMethod } from '@ayana/shared-types';
 import { Badge, Button, Card, MockTag, PageHeader } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
@@ -20,8 +20,6 @@ export function Checkout() {
   const booking = useBooking(bookingId);
   const hotel = useHotel(booking?.hotelId);
   const invoices = useSimulationStore((s) => s.invoices);
-  const conciergeRequests = useSimulationStore((s) => s.conciergeRequests);
-  const intentTasks = useSimulationStore((s) => s.intentTasks);
   const payOutstanding = useSimulationStore((s) => s.payOutstanding);
   const completeCheckout = useSimulationStore((s) => s.completeCheckout);
   const submitFeedback = useSimulationStore((s) => s.submitFeedback);
@@ -41,20 +39,7 @@ export function Checkout() {
   const voucherCode = `VOU-${booking.id.slice(-6).toUpperCase()}`;
 
   const primaryIntent = booking.intents.find((i) => i.role === 'primary');
-  const secondaryIntent = booking.intents.find((i) => i.role === 'secondary');
-  const primaryBlueprint = primaryIntent
-    ? resolveExperienceBlueprint(primaryIntent.templateId, { bookingId: booking.id, conciergeRequests, intentTasks })
-    : [];
-  const secondaryBlueprint = secondaryIntent
-    ? resolveExperienceBlueprint(secondaryIntent.templateId, { bookingId: booking.id, conciergeRequests, intentTasks })
-    : [];
-  const mergedBlueprint = mergeBlueprints(primaryBlueprint, secondaryBlueprint);
-  const overallFulfilment = calculateIntentFulfilment(mergedBlueprint);
-  const journeySummary = summarizeBlueprint(mergedBlueprint, {
-    bookingId: booking.id,
-    intentTasks,
-    checkedInAt: booking.checkedInAt,
-  });
+  const blendedScore = blendIntentMatchScore(booking.intents, booking.intentMatch);
 
   return (
     <div className="min-h-screen bg-cream-50 pb-10">
@@ -127,50 +112,37 @@ export function Checkout() {
                       <p className="mb-3 rounded-lg bg-cream-100 px-3 py-2 text-xs italic text-ink-700/70">“{booking.journeyGoal}”</p>
                     )}
 
-                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-700/60">Breakdown</p>
-                    <div className="flex flex-col gap-1.5">
-                      {journeySummary.buckets.map((b) => (
-                        <div key={b.kind} className="flex items-center justify-between text-sm">
-                          <span className="text-ink-700/70">{b.label}</span>
-                          <span className="font-medium text-ink-900">
-                            {b.done} of {b.total}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {journeySummary.timedCompletions.length > 0 && (
-                      <div className="mt-3 flex flex-col gap-1 border-t border-ink-900/10 pt-2.5">
-                        {journeySummary.timedCompletions.map((t) => (
-                          <p key={t.label} className="text-xs text-springs-600">
-                            {t.label} — confirmed {t.minutesAfterCheckIn} min after check-in
+                    {booking.intents.map((intent) => {
+                      const match = booking.intentMatch.find((m) => m.templateId === intent.templateId);
+                      return (
+                        <div key={intent.templateId} className="mb-3 last:mb-0">
+                          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-700/60">
+                            {intentTemplateById(intent.templateId)?.label ?? 'Intent'} · {intent.role === 'primary' ? 'Primary' : 'Secondary'}
                           </p>
-                        ))}
-                      </div>
-                    )}
+                          {match && match.totalCount > 0 ? (
+                            <div className="flex flex-col gap-1">
+                              {match.items.map((item) => (
+                                <div key={item.id} className="flex flex-col text-xs">
+                                  <span className={item.matched ? 'text-ink-900' : 'text-ink-700/70'}>
+                                    {item.matched ? '✓' : '△'} {item.label}
+                                  </span>
+                                  {item.note && <span className="pl-4 text-ink-700/50">{item.note}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-ink-700/50">Not yet assessable for this journey type.</p>
+                          )}
+                        </div>
+                      );
+                    })}
 
-                    {journeySummary.stillOpen.length > 0 && (
-                      <p className="mt-3 border-t border-ink-900/10 pt-2.5 text-xs text-ink-700/60">
-                        Still following up on: {journeySummary.stillOpen.join(', ')}
-                      </p>
-                    )}
-
-                    <div className="mt-3 flex items-center justify-between border-t border-ink-900/10 pt-3">
+                    <div className="mt-1 flex items-center justify-between border-t border-ink-900/10 pt-3">
                       <span className="text-sm font-medium text-ink-900">Intent Match Score</span>
-                      <Badge tone="gold">{overallFulfilment}%</Badge>
+                      {blendedScore !== null ? <Badge tone="gold">{blendedScore}%</Badge> : <Badge tone="neutral">Not yet available</Badge>}
                     </div>
-                    <div className="mt-1.5 flex items-center justify-between text-xs">
-                      <span className="text-ink-700/60">{intentTemplateById(primaryIntent.templateId)?.label ?? 'Primary intent'}</span>
-                      <span className="text-ink-900">{calculateIntentFulfilment(primaryBlueprint)}%</span>
-                    </div>
-                    {secondaryIntent && (
-                      <div className="mt-1 flex items-center justify-between text-xs">
-                        <span className="text-ink-700/60">{intentTemplateById(secondaryIntent.templateId)?.label}</span>
-                        <span className="text-ink-900">{calculateIntentFulfilment(secondaryBlueprint)}%</span>
-                      </div>
-                    )}
 
-                    <p className="mt-3 text-xs italic text-ink-700/50">Matched against what you told us before arrival.</p>
+                    <p className="mt-3 text-xs italic text-ink-700/50">Matched against real availability at the time you booked.</p>
                   </Card>
                 </section>
               )}

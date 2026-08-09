@@ -1,5 +1,5 @@
 import type { TravellerProfileType } from './guest';
-import type { BookingIntent } from './intent';
+import type { BookingIntent, IntentMatchAssessment } from './intent';
 import type { BedType, RoomCategory, RoomView } from './room';
 
 export type BookingStatus =
@@ -64,5 +64,7 @@ export interface Booking {
   journeyGoal: string | null;
   /** The real moment check-in completed (guest self-service or staff-assisted) — null until then. */
   checkedInAt: string | null;
+  /** One entry per attached Intent, computed once at booking time from real availability/amenity data. Empty for bookings with no Intent. */
+  intentMatch: IntentMatchAssessment[];
   createdAt: string;
 }

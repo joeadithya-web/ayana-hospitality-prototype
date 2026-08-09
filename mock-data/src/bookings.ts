@@ -99,6 +99,7 @@ function buildBooking(params: {
     intents: [],
     journeyGoal: null,
     checkedInAt: status === 'checked_in' || status === 'checked_out' ? checkIn.toISOString() : null,
+    intentMatch: [],
     createdAt: daysFrom(checkIn, -randomInt(rng, 3, 30)).toISOString(),
   };
 }
