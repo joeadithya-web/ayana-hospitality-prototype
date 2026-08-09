@@ -62,5 +62,7 @@ export interface Booking {
   intents: BookingIntent[];
   /** Free-text answer to "What would make this journey successful?" — captured verbatim, never parsed. */
   journeyGoal: string | null;
+  /** The real moment check-in completed (guest self-service or staff-assisted) — null until then. */
+  checkedInAt: string | null;
   createdAt: string;
 }

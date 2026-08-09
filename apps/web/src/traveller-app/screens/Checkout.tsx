@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { calculateIntentFulfilment, intentTemplateById, mergeBlueprints, resolveExperienceBlueprint } from '@ayana/ai-engine';
+import { calculateIntentFulfilment, intentTemplateById, mergeBlueprints, resolveExperienceBlueprint, summarizeBlueprint } from '@ayana/ai-engine';
 import type { PaymentMethod } from '@ayana/shared-types';
 import { Badge, Button, Card, MockTag, PageHeader } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
@@ -48,7 +48,13 @@ export function Checkout() {
   const secondaryBlueprint = secondaryIntent
     ? resolveExperienceBlueprint(secondaryIntent.templateId, { bookingId: booking.id, conciergeRequests, intentTasks })
     : [];
-  const overallFulfilment = calculateIntentFulfilment(mergeBlueprints(primaryBlueprint, secondaryBlueprint));
+  const mergedBlueprint = mergeBlueprints(primaryBlueprint, secondaryBlueprint);
+  const overallFulfilment = calculateIntentFulfilment(mergedBlueprint);
+  const journeySummary = summarizeBlueprint(mergedBlueprint, {
+    bookingId: booking.id,
+    intentTasks,
+    checkedInAt: booking.checkedInAt,
+  });
 
   return (
     <div className="min-h-screen bg-cream-50 pb-10">
@@ -115,25 +121,56 @@ export function Checkout() {
 
               {primaryIntent && (
                 <section>
-                  <h2 className="mb-2 font-display text-base font-semibold text-ink-950">Intent Fulfilment</h2>
+                  <h2 className="mb-2 font-display text-base font-semibold text-ink-950">Your Journey Recap</h2>
                   <Card>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-ink-700/60">
-                        {intentTemplateById(primaryIntent.templateId)?.label ?? 'Primary intent'}
-                      </span>
-                      <span className="font-medium text-ink-900">{calculateIntentFulfilment(primaryBlueprint)}%</span>
+                    {booking.journeyGoal && (
+                      <p className="mb-3 rounded-lg bg-cream-100 px-3 py-2 text-xs italic text-ink-700/70">“{booking.journeyGoal}”</p>
+                    )}
+
+                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-700/60">Breakdown</p>
+                    <div className="flex flex-col gap-1.5">
+                      {journeySummary.buckets.map((b) => (
+                        <div key={b.kind} className="flex items-center justify-between text-sm">
+                          <span className="text-ink-700/70">{b.label}</span>
+                          <span className="font-medium text-ink-900">
+                            {b.done} of {b.total}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                    {secondaryIntent && (
-                      <div className="mt-1.5 flex items-center justify-between">
-                        <span className="text-sm text-ink-700/60">{intentTemplateById(secondaryIntent.templateId)?.label}</span>
-                        <span className="font-medium text-ink-900">{calculateIntentFulfilment(secondaryBlueprint)}%</span>
+
+                    {journeySummary.timedCompletions.length > 0 && (
+                      <div className="mt-3 flex flex-col gap-1 border-t border-ink-900/10 pt-2.5">
+                        {journeySummary.timedCompletions.map((t) => (
+                          <p key={t.label} className="text-xs text-springs-600">
+                            {t.label} — confirmed {t.minutesAfterCheckIn} min after check-in
+                          </p>
+                        ))}
                       </div>
                     )}
-                    <div className="mt-2 flex items-center justify-between border-t border-ink-900/10 pt-2">
-                      <span className="text-sm font-medium text-ink-900">Overall Journey Fulfilment</span>
+
+                    {journeySummary.stillOpen.length > 0 && (
+                      <p className="mt-3 border-t border-ink-900/10 pt-2.5 text-xs text-ink-700/60">
+                        Still following up on: {journeySummary.stillOpen.join(', ')}
+                      </p>
+                    )}
+
+                    <div className="mt-3 flex items-center justify-between border-t border-ink-900/10 pt-3">
+                      <span className="text-sm font-medium text-ink-900">Intent Match Score</span>
                       <Badge tone="gold">{overallFulfilment}%</Badge>
                     </div>
-                    <p className="mt-2 text-xs italic text-ink-700/50">Did we help you achieve the purpose of your journey?</p>
+                    <div className="mt-1.5 flex items-center justify-between text-xs">
+                      <span className="text-ink-700/60">{intentTemplateById(primaryIntent.templateId)?.label ?? 'Primary intent'}</span>
+                      <span className="text-ink-900">{calculateIntentFulfilment(primaryBlueprint)}%</span>
+                    </div>
+                    {secondaryIntent && (
+                      <div className="mt-1 flex items-center justify-between text-xs">
+                        <span className="text-ink-700/60">{intentTemplateById(secondaryIntent.templateId)?.label}</span>
+                        <span className="text-ink-900">{calculateIntentFulfilment(secondaryBlueprint)}%</span>
+                      </div>
+                    )}
+
+                    <p className="mt-3 text-xs italic text-ink-700/50">Matched against what you told us before arrival.</p>
                   </Card>
                 </section>
               )}

@@ -48,4 +48,5 @@ export interface IntentTask {
   department: StaffRole;
   status: 'pending' | 'done';
   createdAt: string;
+  completedAt: string | null;
 }

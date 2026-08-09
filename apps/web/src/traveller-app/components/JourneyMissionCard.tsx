@@ -46,7 +46,7 @@ export function JourneyMissionCard({ booking, conciergeRequests, intentTasks, on
     <section>
       <div className="mb-2 flex items-center justify-between">
         <h2 className="font-display text-base font-semibold text-ink-950">My Journey</h2>
-        <Badge tone="gold">{overallFulfilment}% ready</Badge>
+        <Badge tone="gold">Intent Match Score {overallFulfilment}%</Badge>
       </div>
 
       <Card>

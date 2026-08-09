@@ -136,6 +136,7 @@ export function withBookingCreated(
     groupRef: null,
     intents: input.intents ?? [],
     journeyGoal: input.journeyGoal ?? null,
+    checkedInAt: null,
     createdAt: new Date().toISOString(),
   };
 
@@ -154,6 +155,7 @@ export function withBookingCreated(
     department: seed.department,
     status: 'pending',
     createdAt: new Date().toISOString(),
+    completedAt: null,
   }));
 
   return {
@@ -228,6 +230,7 @@ export function withGroupBookingCreated(
     groupRef,
     intents: [],
     journeyGoal: null,
+    checkedInAt: null,
     createdAt: new Date().toISOString(),
   }));
 
@@ -483,7 +486,7 @@ export function withCheckoutCompleted(data: EngineData, payload: { bookingId: st
 export function withGuestCheckedIn(data: EngineData, payload: { bookingId: string }, source: ActivitySource): EngineData {
   const booking = data.bookings.find((b) => b.id === payload.bookingId);
   if (!booking) return data;
-  const updatedBooking: Booking = { ...booking, status: 'checked_in' };
+  const updatedBooking: Booking = { ...booking, status: 'checked_in', checkedInAt: new Date().toISOString() };
   return {
     ...data,
     bookings: data.bookings.map((b) => (b.id === booking.id ? updatedBooking : b)),
@@ -773,6 +776,7 @@ export function withManualCheckIn(
   const updatedBooking: Booking = {
     ...booking,
     status: 'checked_in',
+    checkedInAt: new Date().toISOString(),
     readyToRoom: { ...booking.readyToRoom, identityVerified: true, paymentVerified: true, roomReady: true, keyPathReady: true },
   };
   const override = withOverrideLog(data, { staffId: payload.staffId, action: 'force_check_in', bookingId: booking.id, reason: 'Manual check-in by Front Office' });
@@ -1126,7 +1130,11 @@ export function withIntentTaskUpdate(
 ): EngineData {
   const task = data.intentTasks.find((t) => t.id === payload.taskId);
   if (!task) return data;
-  const updated: IntentTask = { ...task, status: payload.status };
+  const updated: IntentTask = {
+    ...task,
+    status: payload.status,
+    completedAt: payload.status === 'done' ? new Date().toISOString() : task.completedAt,
+  };
 
   return {
     ...data,

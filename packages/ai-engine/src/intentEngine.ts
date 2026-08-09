@@ -1,4 +1,4 @@
-import type { BlueprintItem, ConciergeRequest, IntentCategory, IntentTask, IntentTemplate, StaffRole } from '@ayana/shared-types';
+import type { BlueprintItem, BlueprintItemKind, ConciergeRequest, IntentCategory, IntentTask, IntentTemplate, StaffRole } from '@ayana/shared-types';
 
 /**
  * The selectable catalog of travel purposes. Only 'business_presentation' is deepBuilt —
@@ -117,6 +117,65 @@ export function calculateIntentFulfilment(items: BlueprintItem[]): number {
   if (items.length === 0) return 100;
   const done = items.filter((i) => i.done).length;
   return Math.round((done / items.length) * 100);
+}
+
+const BUCKET_LABEL: Record<BlueprintItemKind, string> = {
+  auto_ready: 'Verified automatically before you arrived',
+  concierge_request: 'Set up at your request',
+  intent_task: 'Handled by our team',
+};
+
+export interface BlueprintBucket {
+  kind: BlueprintItemKind;
+  label: string;
+  done: number;
+  total: number;
+}
+
+export interface TimedCompletion {
+  label: string;
+  minutesAfterCheckIn: number;
+}
+
+export interface BlueprintSummary {
+  buckets: BlueprintBucket[];
+  timedCompletions: TimedCompletion[];
+  stillOpen: string[];
+}
+
+/**
+ * The guest-facing checkout recap's data source — real counts and, where the timestamps
+ * exist, real elapsed-time figures. Never a single opaque percentage: every number here
+ * traces back to an actual blueprint item, IntentTask, or ConciergeRequest record.
+ */
+export function summarizeBlueprint(
+  items: BlueprintItem[],
+  ctx: { bookingId: string; intentTasks: IntentTask[]; checkedInAt: string | null },
+): BlueprintSummary {
+  const real = items.filter((i) => i.id !== 'placeholder');
+
+  const buckets: BlueprintBucket[] = (['auto_ready', 'concierge_request', 'intent_task'] as BlueprintItemKind[])
+    .map((kind) => {
+      const ofKind = real.filter((i) => i.kind === kind);
+      return { kind, label: BUCKET_LABEL[kind], done: ofKind.filter((i) => i.done).length, total: ofKind.length };
+    })
+    .filter((b) => b.total > 0);
+
+  const timedCompletions: TimedCompletion[] = [];
+  if (ctx.checkedInAt) {
+    const checkedInMs = new Date(ctx.checkedInAt).getTime();
+    for (const item of real) {
+      if (item.kind !== 'intent_task' || !item.done) continue;
+      const task = ctx.intentTasks.find((t) => t.bookingId === ctx.bookingId && t.label === item.label);
+      if (!task?.completedAt) continue;
+      const minutes = Math.round((new Date(task.completedAt).getTime() - checkedInMs) / 60_000);
+      if (minutes >= 0) timedCompletions.push({ label: item.label, minutesAfterCheckIn: minutes });
+    }
+  }
+
+  const stillOpen = real.filter((i) => !i.done).map((i) => i.label);
+
+  return { buckets, timedCompletions, stillOpen };
 }
 
 /**
