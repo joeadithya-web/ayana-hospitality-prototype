@@ -30,7 +30,7 @@ import type {
   RoomStatus,
 } from '@ayana/shared-types';
 import { makeId, makeMockRef } from '@ayana/shared-utils';
-import type { CreateBookingInput, CreateGroupBookingInput, EngineData, PostChargeInput, RegisterGuestInput, RequestConciergeInput } from './types';
+import type { CreateBookingInput, CreateGroupBookingInput, EngineData, PostChargeInput, RegisterGuestInput, RequestConciergeInput, WalkInBookingInput } from './types';
 
 function logEntry(
   source: ActivitySource,
@@ -615,6 +615,125 @@ export function withGuestRegistered(data: EngineData, input: RegisterGuestInput,
     ...data,
     guests: data.guests.map((g) => (g.id === guest.id ? updated : g)),
     activityLog: [...data.activityLog, logEntry(source, 'Guest registered', null, null)],
+  };
+}
+
+function defaultAyanaMemory(): AyanaMemory {
+  return {
+    dietaryPreference: 'no_preference',
+    smokingPreference: 'non_smoking',
+    preferredView: null,
+    preferredFloor: null,
+    roomTemperatureC: null,
+    pillowType: 'no_preference',
+    accessibilityNeeds: [],
+    airportPickupPreferred: false,
+    preferredPaymentMethod: null,
+    favouriteServices: [],
+    businessOrLeisure: 'mixed',
+    specialRequests: [],
+    interests: [],
+    consent: { sharedWithHotels: true, lastUpdated: new Date().toISOString() },
+  };
+}
+
+/**
+ * A guest who arrives with no AYANA account and no reservation — booked and paid on the spot
+ * at the Front Desk. Creates a brand-new Guest record (the walk-in equivalent of downloading
+ * the app and signing up) and a Booking in the same step, already 'confirmed' and fully paid
+ * since that's how a real walk-in works: they pay before staff hand over a room. Room
+ * allocation and check-in still go through the same Front Office actions as any other booking.
+ */
+export function withWalkInBooking(
+  data: EngineData,
+  input: WalkInBookingInput,
+  source: ActivitySource,
+): { data: EngineData; guest: Guest; booking: Booking } {
+  const nights = Math.max(1, Math.round((new Date(input.checkOutDate).getTime() - new Date(input.checkInDate).getTime()) / 86_400_000));
+  const nightlyPrice = corporateNightlyPrice(data, input.hotelId, input.roomCategory, null);
+  const totalAmount = nightlyPrice * nights;
+
+  const guest: Guest = {
+    id: makeId('guest'),
+    fullName: input.fullName,
+    email: input.email,
+    mobile: input.mobile,
+    nationality: '',
+    profileType: 'individual',
+    isVip: false,
+    isReturning: false,
+    loyalty: { tier: 'member', points: 0 },
+    memory: defaultAyanaMemory(),
+    familyMembers: [],
+    previousStayIds: [],
+    groupOrCorporateContext: null,
+    createdAt: new Date().toISOString(),
+  };
+
+  const booking: Booking = {
+    id: makeId('bkg'),
+    guestId: guest.id,
+    hotelId: input.hotelId,
+    roomCategory: input.roomCategory,
+    expectedView: null,
+    expectedBedType: null,
+    roomId: null,
+    allocationStatus: 'pending',
+    checkInDate: input.checkInDate,
+    checkOutDate: input.checkOutDate,
+    guestsCount: input.guestsCount,
+    status: 'confirmed',
+    bookingType: 'individual',
+    paymentTier: 100,
+    holdUntil: null,
+    totalAmount,
+    amountPaid: totalAmount,
+    readyToRoom: { ...emptyReadyToRoom(), paymentVerified: true },
+    corporateId: null,
+    groupRef: null,
+    intents: [],
+    journeyGoal: null,
+    checkedInAt: null,
+    intentMatch: [],
+    checkedOutAt: null,
+    feedbackReminderCount: 0,
+    lastFeedbackReminderAt: null,
+    createdAt: new Date().toISOString(),
+  };
+
+  const hotelName = data.hotels.find((h) => h.id === input.hotelId)?.name ?? 'the hotel';
+
+  return {
+    guest,
+    booking,
+    data: {
+      ...data,
+      guests: [...data.guests, guest],
+      bookings: [...data.bookings, booking],
+      activityLog: [...data.activityLog, logEntry(source, 'Walk-in guest registered and booked', booking.id, booking.hotelId)],
+      notifications: pushNotification(
+        data,
+        guest.id,
+        'Welcome to AYANA',
+        `You're booked at ${hotelName} — Front Office will have your room ready shortly.`,
+      ),
+    },
+  };
+}
+
+export function withRemoteWalkInInserted(
+  data: EngineData,
+  payload: { guest: Guest; booking: Booking },
+  source: ActivitySource,
+): EngineData {
+  const guests = data.guests.some((g) => g.id === payload.guest.id) ? data.guests : [...data.guests, payload.guest];
+  const bookings = data.bookings.some((b) => b.id === payload.booking.id) ? data.bookings : [...data.bookings, payload.booking];
+  if (guests === data.guests && bookings === data.bookings) return data;
+  return {
+    ...data,
+    guests,
+    bookings,
+    activityLog: [...data.activityLog, logEntry(source, 'Walk-in guest registered and booked', payload.booking.id, payload.booking.hotelId)],
   };
 }
 

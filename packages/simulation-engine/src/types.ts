@@ -72,3 +72,20 @@ export interface RegisterGuestInput {
   dietaryPreference: import('@ayana/shared-types').DietaryPreference;
   businessOrLeisure: import('@ayana/shared-types').BusinessLeisure;
 }
+
+/**
+ * A guest with no AYANA account and no existing reservation, booked on the spot at the Front
+ * Desk. Unlike RegisterGuestInput (which patches an existing account), this creates a brand
+ * new Guest record — the walk-in equivalent of downloading the app and signing up, done by
+ * staff instead of the guest.
+ */
+export interface WalkInBookingInput {
+  fullName: string;
+  email: string;
+  mobile: string;
+  hotelId: string;
+  roomCategory: import('@ayana/shared-types').RoomCategory;
+  checkInDate: string;
+  checkOutDate: string;
+  guestsCount: number;
+}

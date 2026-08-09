@@ -23,22 +23,35 @@ export function Login() {
     navigate('/traveller/dashboard');
   }
 
+  // A phone/email that matches an existing guest is a returning sign-in. Anything else is
+  // exactly what happens the moment a brand-new customer downloads the app — OTP-verify,
+  // then complete a short profile that becomes their AYANA Memory from day one.
+  function findGuestByIdentifier(value: string) {
+    const needle = value.trim().toLowerCase();
+    return guests.find((g) => g.email.toLowerCase() === needle || g.mobile.replace(/\s+/g, '') === needle.replace(/\s+/g, ''));
+  }
+
   function handleSendOtp() {
     if (!identifier.trim()) return;
-    setPendingGuestId(personas[0]?.id ?? guests[0]?.id ?? null);
+    setPendingGuestId(findGuestByIdentifier(identifier)?.id ?? null);
     setStage('otp');
     setOtpError(false);
   }
 
   function handleVerifyOtp() {
-    if (otp.trim().length < 4 || !pendingGuestId) return;
+    if (otp.trim().length < 4) return;
     if (activeFailureScenario === 'otp_failure') {
       setOtpError(true);
       setOtp('');
       return;
     }
-    login(pendingGuestId);
-    navigate('/traveller/dashboard');
+    if (pendingGuestId) {
+      login(pendingGuestId);
+      navigate('/traveller/dashboard');
+    } else {
+      // No match — this identifier has never signed up before.
+      navigate(`/traveller/register?guestId=guest_demo_newcomer&identifier=${encodeURIComponent(identifier.trim())}`);
+    }
   }
 
   return (
@@ -62,18 +75,6 @@ export function Login() {
                 <span className="text-ink-700/40">→</span>
               </Card>
             ))}
-            <Card
-              padded
-              className="flex cursor-pointer items-center gap-3 border-dashed border-gold-500/40 bg-gold-500/5"
-              onClick={() => navigate('/traveller/register?guestId=guest_demo_newcomer')}
-            >
-              <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-gold-500/15 text-lg">✨</span>
-              <div className="flex-1 text-left">
-                <p className="font-medium text-ink-900">New Guest</p>
-                <p className="text-xs text-ink-700/50">Start your AYANA journey — tell us about you</p>
-              </div>
-              <span className="text-ink-700/40">→</span>
-            </Card>
           </div>
 
           <div className="flex items-center gap-3 text-xs text-ink-700/40">
@@ -83,6 +84,7 @@ export function Login() {
           </div>
 
           <TextField label="Email or mobile number" placeholder="you@example.com" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+          <p className="-mt-2 text-[11px] text-ink-700/40">New to AYANA? Enter your details above — we'll verify with an OTP and get your profile set up.</p>
           <Button onClick={handleSendOtp} fullWidth>Send OTP</Button>
         </>
       )}

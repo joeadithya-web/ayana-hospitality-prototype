@@ -23,7 +23,7 @@ import type {
   RoomStatus,
 } from '@ayana/shared-types';
 import { simulationBus } from './broadcast';
-import type { CreateBookingInput, CreateGroupBookingInput, EngineData, PostChargeInput, RegisterGuestInput } from './types';
+import type { CreateBookingInput, CreateGroupBookingInput, EngineData, PostChargeInput, RegisterGuestInput, WalkInBookingInput } from './types';
 import {
   withBookingCancelled,
   withBookingCreated,
@@ -40,6 +40,8 @@ import {
   withFeedbackReminderChecked,
   withFeedbackSubmitted,
   withGuestRegistered,
+  withRemoteWalkInInserted,
+  withWalkInBooking,
   withGuestCheckedIn,
   withHousekeepingRequest,
   withHousekeepingTaskUpdate,
@@ -110,6 +112,7 @@ export interface EngineActions {
   createGroupBooking: (input: CreateGroupBookingInput) => Booking[];
   updateMemory: (guestId: string, patch: Partial<AyanaMemory>) => void;
   registerGuest: (input: RegisterGuestInput) => void;
+  createWalkIn: (input: WalkInBookingInput) => Booking;
   createBooking: (input: CreateBookingInput) => Booking;
   payBooking: (bookingId: string, method: PaymentMethod, amount: number) => MockTransaction;
   setRoomStatus: (roomId: string, status: RoomStatus) => void;
@@ -214,6 +217,13 @@ export const useSimulationStore = create<EngineStore>()((set, get) => ({
     const next = withGuestRegistered(get(), input, currentSource());
     set(next);
     simulationBus.publish('guest_registered', input);
+  },
+
+  createWalkIn: (input) => {
+    const { data, guest, booking } = withWalkInBooking(get(), input, currentSource());
+    set(data);
+    simulationBus.publish('walk_in_booking_created', { guest, booking });
+    return booking;
   },
 
   createBooking: (input) => {
@@ -515,6 +525,9 @@ simulationBus.subscribe((event) => {
       break;
     case 'guest_registered':
       useSimulationStore.setState(withGuestRegistered(state, event.payload as any, 'system'));
+      break;
+    case 'walk_in_booking_created':
+      useSimulationStore.setState(withRemoteWalkInInserted(state, event.payload as any, 'system'));
       break;
     case 'concierge_request_created':
       useSimulationStore.setState(withRemoteConciergeRequestInserted(state, event.payload as ConciergeRequest, 'system'));

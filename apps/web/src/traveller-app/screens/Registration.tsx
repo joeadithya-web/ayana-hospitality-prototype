@@ -26,12 +26,15 @@ export function Registration() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const guestId = params.get('guestId') ?? 'guest_demo_newcomer';
+  // Carried over from the sign-in screen — whatever the guest just OTP-verified, so they
+  // don't have to type it twice.
+  const identifier = params.get('identifier') ?? '';
   const registerGuest = useSimulationStore((s) => s.registerGuest);
   const login = useSimulationStore((s) => s.login);
 
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [mobile, setMobile] = useState('');
+  const [email, setEmail] = useState(identifier.includes('@') ? identifier : '');
+  const [mobile, setMobile] = useState(identifier && !identifier.includes('@') ? identifier : '');
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [interests, setInterests] = useState<Set<string>>(new Set());
   const [dietaryPreference, setDietaryPreference] = useState<DietaryPreference>('no_preference');
