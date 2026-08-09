@@ -22,6 +22,8 @@ export type SimulationEventType =
   | 'room_ready'
   | 'housekeeping_task_created'
   | 'housekeeping_task_updated'
+  | 'intent_task_created'
+  | 'intent_task_updated'
   | 'guest_arrived'
   | 'qr_scanned'
   | 'key_issued'

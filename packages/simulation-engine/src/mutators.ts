@@ -9,6 +9,7 @@ import type {
   GuestFeedback,
   HousekeepingTask,
   HousekeepingTaskStatus,
+  IntentTask,
   Invoice,
   InvoiceLineItemCategory,
   MockNotification,
@@ -95,7 +96,7 @@ export function withBookingCreated(
   data: EngineData,
   input: CreateBookingInput,
   source: ActivitySource,
-): { data: EngineData; booking: Booking } {
+): { data: EngineData; booking: Booking; intentTasks: IntentTask[] } {
   const nights = Math.max(
     1,
     Math.round((new Date(input.checkOutDate).getTime() - new Date(input.checkInDate).getTime()) / 86_400_000),
@@ -133,16 +134,35 @@ export function withBookingCreated(
     readyToRoom: emptyReadyToRoom(),
     corporateId: input.corporateId ?? null,
     groupRef: null,
+    intents: input.intents ?? [],
+    journeyGoal: input.journeyGoal ?? null,
     createdAt: new Date().toISOString(),
   };
 
   const hotelName = data.hotels.find((h) => h.id === booking.hotelId)?.name ?? 'your hotel';
 
+  // Only present when a deepBuilt Intent's blueprint needs live hotel-side tasks — the app
+  // computes the seeds (via `intentTaskSeedsForTemplate` in @ayana/ai-engine) and hands them
+  // over as plain data, keeping this package free of business-logic dependencies.
+  const intentTasks: IntentTask[] = (input.intentTaskSeeds ?? []).map((seed) => ({
+    id: makeId('itk'),
+    bookingId: booking.id,
+    guestId: booking.guestId,
+    hotelId: booking.hotelId,
+    templateId: input.intents?.[0]?.templateId ?? '',
+    label: seed.label,
+    department: seed.department,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  }));
+
   return {
     booking,
+    intentTasks,
     data: {
       ...data,
       bookings: [...data.bookings, booking],
+      intentTasks: [...data.intentTasks, ...intentTasks],
       activityLog: [...data.activityLog, logEntry(source, 'Booking created', booking.id, booking.hotelId)],
       notifications: pushNotification(
         data,
@@ -206,6 +226,8 @@ export function withGroupBookingCreated(
     readyToRoom: emptyReadyToRoom(),
     corporateId: input.corporateId ?? null,
     groupRef,
+    intents: [],
+    journeyGoal: null,
     createdAt: new Date().toISOString(),
   }));
 
@@ -523,6 +545,15 @@ export function withRemoteHousekeepingTaskInserted(data: EngineData, task: House
     ...data,
     housekeepingTasks: [...data.housekeepingTasks, task],
     activityLog: [...data.activityLog, logEntry(source, 'Housekeeping requested', null, task.hotelId)],
+  };
+}
+
+export function withRemoteIntentTaskInserted(data: EngineData, task: IntentTask, source: ActivitySource): EngineData {
+  if (data.intentTasks.some((t) => t.id === task.id)) return data;
+  return {
+    ...data,
+    intentTasks: [...data.intentTasks, task],
+    activityLog: [...data.activityLog, logEntry(source, `Intent task created: ${task.label}`, task.bookingId, task.hotelId)],
   };
 }
 
@@ -1084,6 +1115,26 @@ export function withConciergeStatusUpdate(
     notifications:
       payload.status === 'confirmed'
         ? pushNotification(data, request.guestId, 'Request confirmed', `Your ${request.type.replaceAll('_', ' ')} request has been confirmed.`)
+        : data.notifications,
+  };
+}
+
+export function withIntentTaskUpdate(
+  data: EngineData,
+  payload: { taskId: string; status: IntentTask['status'] },
+  source: ActivitySource,
+): EngineData {
+  const task = data.intentTasks.find((t) => t.id === payload.taskId);
+  if (!task) return data;
+  const updated: IntentTask = { ...task, status: payload.status };
+
+  return {
+    ...data,
+    intentTasks: data.intentTasks.map((t) => (t.id === task.id ? updated : t)),
+    activityLog: [...data.activityLog, logEntry(source, `Intent task ${payload.status}: ${task.label}`, task.bookingId, task.hotelId)],
+    notifications:
+      payload.status === 'done'
+        ? pushNotification(data, task.guestId, 'Journey update', `${task.label} — done.`)
         : data.notifications,
   };
 }

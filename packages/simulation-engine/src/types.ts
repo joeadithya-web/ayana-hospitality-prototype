@@ -23,6 +23,11 @@ export interface CreateBookingInput {
   paymentTier: 100 | 50 | 25;
   /** Present when booked on a corporate agreement — applies its negotiated rate. */
   corporateId?: string | null;
+  /** Optional Intent Engine fields — absent everywhere the guest doesn't opt in. */
+  intents?: import('@ayana/shared-types').BookingIntent[];
+  journeyGoal?: string | null;
+  /** Hotel-side tasks a deepBuilt blueprint needs at booking time — computed by the app from `intentTaskSeedsForTemplate` in @ayana/ai-engine, kept out of this package so the engine stays business-logic-free. */
+  intentTaskSeeds?: { label: string; department: import('@ayana/shared-types').StaffRole }[];
 }
 
 export interface CreateGroupBookingInput {

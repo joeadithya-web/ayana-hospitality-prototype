@@ -6,6 +6,7 @@ export * from './payment';
 export * from './staff';
 export * from './housekeeping';
 export * from './concierge';
+export * from './intent';
 export * from './services';
 export * from './corporate';
 export * from './notification';

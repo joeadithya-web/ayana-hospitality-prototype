@@ -8,6 +8,7 @@ import type {
   GuestFeedback,
   Hotel,
   HousekeepingTask,
+  IntentTask,
   Invoice,
   MockNotification,
   MockTransaction,
@@ -34,6 +35,7 @@ export interface SeedData {
   transactions: MockTransaction[];
   refunds: RefundRecord[];
   housekeepingTasks: HousekeepingTask[];
+  intentTasks: IntentTask[];
   conciergeRequests: ConciergeRequest[];
   notifications: MockNotification[];
   activityLog: ActivityLogEvent[];
@@ -63,6 +65,7 @@ export function generateSeedData(): SeedData {
     transactions: [],
     refunds: [],
     housekeepingTasks: [],
+    intentTasks: [],
     conciergeRequests: [],
     notifications: [],
     activityLog: [],

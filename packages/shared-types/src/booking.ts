@@ -1,4 +1,5 @@
 import type { TravellerProfileType } from './guest';
+import type { BookingIntent } from './intent';
 import type { BedType, RoomCategory, RoomView } from './room';
 
 export type BookingStatus =
@@ -57,5 +58,9 @@ export interface Booking {
   corporateId: string | null;
   /** Shared by every room booked together for one party; null for single-room bookings. */
   groupRef: string | null;
+  /** Why the guest is travelling. Empty for every booking that doesn't opt into the Intent Engine. */
+  intents: BookingIntent[];
+  /** Free-text answer to "What would make this journey successful?" — captured verbatim, never parsed. */
+  journeyGoal: string | null;
   createdAt: string;
 }

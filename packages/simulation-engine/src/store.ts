@@ -11,6 +11,7 @@ import type {
   GuestFeedback,
   HousekeepingTask,
   HousekeepingTaskStatus,
+  IntentTask,
   InvoiceLineItemCategory,
   MockTransaction,
   NotificationChannel,
@@ -39,6 +40,7 @@ import {
   withGuestCheckedIn,
   withHousekeepingRequest,
   withHousekeepingTaskUpdate,
+  withIntentTaskUpdate,
   withManualCheckIn,
   withManualCheckout,
   withMemoryUpdate,
@@ -52,6 +54,7 @@ import {
   withRemoteBookingInserted,
   withRemoteConciergeRequestInserted,
   withRemoteHousekeepingTaskInserted,
+  withRemoteIntentTaskInserted,
   withBookingWindowExpired,
   withRoomAssignment,
   withRoomAutoAllocated,
@@ -62,7 +65,7 @@ import {
   withWaiveCharges,
 } from './mutators';
 
-const STORAGE_KEY = 'ayana-simulation-state-v8';
+const STORAGE_KEY = 'ayana-simulation-state-v9';
 
 /** Which app instance this browser tab is running — set once by each app's root on mount. */
 let activeSource: ActivitySource = typeof window === 'undefined' ? 'system' : 'traveller_app';
@@ -157,6 +160,7 @@ export interface EngineActions {
   expireBookingWindow: (bookingId: string) => void;
   updateHousekeepingTask: (taskId: string, status: HousekeepingTaskStatus) => void;
   updateConciergeStatus: (requestId: string, status: ConciergeRequestStatus) => void;
+  updateIntentTask: (taskId: string, status: IntentTask['status']) => void;
   issueRefund: (bookingId: string, amount: number, reason: string) => RefundRecord;
   submitFeedback: (bookingId: string, rating: 1 | 2 | 3 | 4 | 5, comment: string) => GuestFeedback;
   setActiveFailureScenario: (scenario: FailureScenarioId | null) => void;
@@ -196,9 +200,12 @@ export const useSimulationStore = create<EngineStore>()((set, get) => ({
   },
 
   createBooking: (input) => {
-    const { data, booking } = withBookingCreated(get(), input, currentSource());
+    const { data, booking, intentTasks } = withBookingCreated(get(), input, currentSource());
     set(data);
     simulationBus.publish('booking_created', booking);
+    // Replayed the same way group-booking rooms are — one event per entity so remote tabs
+    // insert the exact same ids rather than regenerating their own.
+    intentTasks.forEach((task) => simulationBus.publish('intent_task_created', task));
     return booking;
   },
 
@@ -390,6 +397,12 @@ export const useSimulationStore = create<EngineStore>()((set, get) => ({
     simulationBus.publish('concierge_request_updated', { requestId, status });
   },
 
+  updateIntentTask: (taskId, status) => {
+    const next = withIntentTaskUpdate(get(), { taskId, status }, currentSource());
+    set(next);
+    simulationBus.publish('intent_task_updated', { taskId, status });
+  },
+
   issueRefund: (bookingId, amount, reason) => {
     const { data, refund } = withRefundIssued(get(), { bookingId, amount, reason }, currentSource());
     set(data);
@@ -488,6 +501,12 @@ simulationBus.subscribe((event) => {
       break;
     case 'housekeeping_task_updated':
       useSimulationStore.setState(withHousekeepingTaskUpdate(state, event.payload as any, 'system'));
+      break;
+    case 'intent_task_created':
+      useSimulationStore.setState(withRemoteIntentTaskInserted(state, event.payload as IntentTask, 'system'));
+      break;
+    case 'intent_task_updated':
+      useSimulationStore.setState(withIntentTaskUpdate(state, event.payload as any, 'system'));
       break;
     case 'notification_sent':
       useSimulationStore.setState(withNotification(state, event.payload as any));

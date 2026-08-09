@@ -25,3 +25,8 @@ export function useHotelConciergeRequests() {
   const { hotelId } = useSelectedHotelId();
   return useSimulationStore((s) => s.conciergeRequests.filter((r) => r.hotelId === hotelId));
 }
+
+export function useHotelIntentTasks() {
+  const { hotelId } = useSelectedHotelId();
+  return useSimulationStore((s) => s.intentTasks.filter((t) => t.hotelId === hotelId));
+}

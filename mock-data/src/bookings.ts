@@ -96,6 +96,8 @@ function buildBooking(params: {
           : emptyReadyToRoom(),
     corporateId: null,
     groupRef: null,
+    intents: [],
+    journeyGoal: null,
     createdAt: daysFrom(checkIn, -randomInt(rng, 3, 30)).toISOString(),
   };
 }

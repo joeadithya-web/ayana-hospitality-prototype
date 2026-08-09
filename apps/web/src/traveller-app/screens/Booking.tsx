@@ -4,11 +4,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { categoryAvailability } from '@ayana/ai-engine';
-import type { BedType, RoomCategory, RoomView } from '@ayana/shared-types';
+import { categoryAvailability, INTENT_CATALOG, INTENT_CATEGORY_LABEL, intentTaskSeedsForTemplate, intentTemplateById } from '@ayana/ai-engine';
+import type { BedType, BookingIntent, IntentCategory, RoomCategory, RoomView } from '@ayana/shared-types';
 import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
 import { useCurrentCorporate, useCurrentGuest, useHotel, useRoomsForHotelAndCategory } from '../hooks';
 import { useTripSearchStore } from '../tripSearchStore';
+
+const INTENT_CATEGORIES = Array.from(new Set(INTENT_CATALOG.map((t) => t.category))) as IntentCategory[];
 
 const schema = z.object({
   checkInDate: z.string().min(1),
@@ -38,6 +40,25 @@ export function Booking() {
   const createBooking = useSimulationStore((s) => s.createBooking);
   const trip = useTripSearchStore();
   const [soldOut, setSoldOut] = useState(false);
+
+  // Intent Engine — entirely optional. A guest who never touches this still books exactly
+  // as before: intents stays [] and journeyGoal stays null.
+  const [primaryIntentId, setPrimaryIntentId] = useState<string | null>(null);
+  const [secondaryIntentId, setSecondaryIntentId] = useState<string | null>(null);
+  const [journeyGoal, setJourneyGoal] = useState('');
+
+  function toggleIntent(id: string) {
+    if (primaryIntentId === id) {
+      setPrimaryIntentId(secondaryIntentId);
+      setSecondaryIntentId(null);
+    } else if (secondaryIntentId === id) {
+      setSecondaryIntentId(null);
+    } else if (!primaryIntentId) {
+      setPrimaryIntentId(id);
+    } else {
+      setSecondaryIntentId(id);
+    }
+  }
 
   const { register, handleSubmit, watch, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -97,6 +118,11 @@ export function Booking() {
     }
     setSoldOut(false);
 
+    const intents: BookingIntent[] = [];
+    if (primaryIntentId) intents.push({ templateId: primaryIntentId, role: 'primary', weightPercent: secondaryIntentId ? 70 : 100 });
+    if (secondaryIntentId) intents.push({ templateId: secondaryIntentId, role: 'secondary', weightPercent: 30 });
+    const primaryTemplate = primaryIntentId ? intentTemplateById(primaryIntentId) : undefined;
+
     const booking = createBooking({
       guestId: guest.id,
       hotelId: hotel.id,
@@ -108,6 +134,9 @@ export function Booking() {
       guestsCount: data.guestsCount,
       paymentTier: data.paymentTier as 100 | 50 | 25,
       corporateId: corporate?.id ?? null,
+      intents,
+      journeyGoal: journeyGoal.trim() || null,
+      intentTaskSeeds: primaryTemplate?.deepBuilt ? intentTaskSeedsForTemplate(primaryTemplate.id) : [],
     });
     navigate(`/traveller/payment/${booking.id}`);
   }
@@ -157,6 +186,60 @@ export function Booking() {
             <span className="text-xs font-medium uppercase tracking-wide text-ink-700/60">Guests</span>
             <input type="number" min={1} max={maxOccupancy} className="rounded-lg border border-ink-900/15 px-3 py-2.5 text-sm" {...register('guestsCount')} />
           </label>
+
+          <Card>
+            <p className="text-sm font-medium text-ink-900">What's this trip for? (optional)</p>
+            <p className="text-xs text-ink-700/50">
+              Pick a primary purpose — and a secondary one if this trip is about more than one thing — and AYANA
+              builds you a journey checklist for it.
+            </p>
+            <div className="mt-3 flex flex-col gap-2.5">
+              {INTENT_CATEGORIES.map((cat) => (
+                <div key={cat} className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-ink-700/40">{INTENT_CATEGORY_LABEL[cat]}</span>
+                  <div className="flex flex-wrap gap-2">
+                    {INTENT_CATALOG.filter((t) => t.category === cat).map((t) => {
+                      const isPrimary = primaryIntentId === t.id;
+                      const isSecondary = secondaryIntentId === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => toggleIntent(t.id)}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                            isPrimary
+                              ? 'border-ink-950 bg-ink-950 text-cream-50'
+                              : isSecondary
+                                ? 'border-gold-500 bg-gold-500/15 text-gold-600'
+                                : 'border-ink-900/15 text-ink-700/60'
+                          }`}
+                        >
+                          {t.label}
+                          {isPrimary && ' · Primary'}
+                          {isSecondary && ' · Secondary'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {primaryIntentId && (
+              <label className="mt-3 flex flex-col gap-1.5">
+                <span className="text-xs font-medium uppercase tracking-wide text-ink-700/60">
+                  What would make this journey successful?
+                </span>
+                <textarea
+                  value={journeyGoal}
+                  onChange={(e) => setJourneyGoal(e.target.value)}
+                  rows={2}
+                  placeholder="e.g. I have the biggest presentation of my career tomorrow."
+                  className="rounded-lg border border-ink-900/15 px-3 py-2.5 text-sm"
+                />
+              </label>
+            )}
+          </Card>
 
           <div>
             <span className="text-xs font-medium uppercase tracking-wide text-ink-700/60">Advance payment</span>
