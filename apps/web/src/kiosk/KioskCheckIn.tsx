@@ -3,6 +3,7 @@ import { useSimulationStore } from '@ayana/simulation-engine';
 import { evaluateRoomAllocation } from '@ayana/ai-engine';
 import type { Booking, KioskFailureReason } from '@ayana/shared-types';
 import { Badge, Button } from '@ayana/shared-ui';
+import { formatDate } from '@ayana/shared-utils';
 import { FAILURE_COPY, FaceScanStep, GuestIdentityHeader, KioskPaymentStep, ReservationPicker, RevealableRoom } from './kioskShared';
 import { KioskUpsell } from './KioskUpsell';
 
@@ -30,9 +31,18 @@ export function KioskCheckIn({ hotelId, onExit }: { hotelId: string; onExit: () 
   const activeGuest = activeBooking ? guests.find((g) => g.id === activeBooking.guestId) : null;
   const activeRoom = activeBooking?.roomId ? rooms.find((r) => r.id === activeBooking.roomId) : null;
 
-  const candidates = bookings.filter(
-    (b) => b.hotelId === hotelId && (b.status === 'pending_payment' || b.status === 'confirmed'),
-  );
+  // Excludes bookings that can only ever dead-end at "Reservation Expired" — a guest
+  // picking their own name should never be routed to a booking that's already unusable.
+  // Sorted so today's/soonest arrival ranks first, ahead of anything further out, so a
+  // same-named guest's freshest reservation isn't buried behind older ones by list order.
+  const candidates = bookings
+    .filter(
+      (b) =>
+        b.hotelId === hotelId &&
+        (b.status === 'pending_payment' || b.status === 'confirmed') &&
+        new Date(b.checkOutDate).getTime() >= Date.now(),
+    )
+    .sort((a, b) => new Date(a.checkInDate).getTime() - new Date(b.checkInDate).getTime());
 
   function fail(reason: KioskFailureReason) {
     setFailureReason(reason);
@@ -119,7 +129,7 @@ export function KioskCheckIn({ hotelId, onExit }: { hotelId: string; onExit: () 
           <ReservationPicker
             candidates={candidates}
             guestNameOf={(b) => guestById.get(b.guestId)?.fullName ?? 'Guest'}
-            labelOf={(b) => b.roomCategory}
+            labelOf={(b) => `${b.roomCategory} · ${formatDate(b.checkInDate)}`}
             onSelect={resolveCheckIn}
           />
         </div>
