@@ -17,6 +17,7 @@ export function Login() {
   const [otp, setOtp] = useState('');
   const [pendingGuestId, setPendingGuestId] = useState<string | null>(null);
   const [otpError, setOtpError] = useState(false);
+  const [showDemoProfiles, setShowDemoProfiles] = useState(false);
 
   function handleSelectPersona(guestId: string) {
     login(guestId);
@@ -58,34 +59,36 @@ export function Login() {
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-10">
       <div>
         <h1 className="font-display text-2xl font-semibold text-ink-950">Welcome to AYANA</h1>
-        <p className="text-sm text-ink-700/60">Sign in to continue your Home-to-Room journey.</p>
+        <p className="text-sm text-ink-700/60">Let's get you set up — it only takes a moment.</p>
       </div>
 
       {stage === 'identify' && (
         <>
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-ink-700/50">Demo traveller profiles</p>
-            {personas.map((guest) => (
-              <Card key={guest.id} padded className="flex cursor-pointer items-center gap-3" onClick={() => handleSelectPersona(guest.id)}>
-                <Avatar name={guest.fullName} />
-                <div className="flex-1 text-left">
-                  <p className="font-medium text-ink-900">{guest.fullName}</p>
-                  <p className="text-xs text-ink-700/50 capitalize">{guest.profileType} · {guest.loyalty.tier} tier</p>
-                </div>
-                <span className="text-ink-700/40">→</span>
-              </Card>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3 text-xs text-ink-700/40">
-            <div className="h-px flex-1 bg-ink-900/10" />
-            or continue with email / mobile
-            <div className="h-px flex-1 bg-ink-900/10" />
-          </div>
-
           <TextField label="Email or mobile number" placeholder="you@example.com" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
-          <p className="-mt-2 text-[11px] text-ink-700/40">New to AYANA? Enter your details above — we'll verify with an OTP and get your profile set up.</p>
-          <Button onClick={handleSendOtp} fullWidth>Send OTP</Button>
+          <Button onClick={handleSendOtp} fullWidth>Get Started</Button>
+
+          <button
+            type="button"
+            className="text-center text-xs text-ink-700/40 underline"
+            onClick={() => setShowDemoProfiles((v) => !v)}
+          >
+            {showDemoProfiles ? 'Hide demo profiles' : 'Demo: sign in as an existing traveller'}
+          </button>
+
+          {showDemoProfiles && (
+            <div className="flex flex-col gap-3">
+              {personas.map((guest) => (
+                <Card key={guest.id} padded className="flex cursor-pointer items-center gap-3" onClick={() => handleSelectPersona(guest.id)}>
+                  <Avatar name={guest.fullName} />
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-ink-900">{guest.fullName}</p>
+                    <p className="text-xs text-ink-700/50 capitalize">{guest.profileType} · {guest.loyalty.tier} tier</p>
+                  </div>
+                  <span className="text-ink-700/40">→</span>
+                </Card>
+              ))}
+            </div>
+          )}
         </>
       )}
 
