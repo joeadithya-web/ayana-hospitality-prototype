@@ -47,7 +47,7 @@ export function Registration() {
   }
 
   function addFamilyMember() {
-    setFamilyMembers((prev) => [...prev, { name: '', relationship: RELATIONSHIPS[0] }]);
+    setFamilyMembers((prev) => [...prev, { name: '', relationship: RELATIONSHIPS[0] ?? 'Other' }]);
   }
 
   function updateFamilyMember(index: number, patch: Partial<FamilyMember>) {
