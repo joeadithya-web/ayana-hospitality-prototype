@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 
-const CONTROL_CENTRE_PASSWORD = 'ayana-presenter';
+const CONTROL_CENTRE_PASSWORD = 'ayana';
 const SESSION_KEY = 'ayana-control-centre-unlocked';
 
 export function PasswordGate({ children }: { children: ReactNode }) {
