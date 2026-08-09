@@ -314,12 +314,42 @@ const JOURNEY_GOAL_FOLLOWUP: Record<IntentCategory, string> = {
 };
 
 /**
+ * Keyword → concrete phrase map for reflecting specifics back to the guest instead of a
+ * generic category reply — what makes the first AnA IQ follow-up read as heard, not scripted.
+ * Deliberately small and literal (substring match, no NLP) to stay honest about being
+ * rule-based rather than a fabricated understanding.
+ */
+const KEYWORD_ACKNOWLEDGEMENT: { keywords: string[]; phrase: string }[] = [
+  { keywords: ['quiet', 'silence', 'peaceful'], phrase: 'a quiet room' },
+  { keywords: ['view', 'ocean', 'sea', 'pool'], phrase: 'a room with a good view' },
+  { keywords: ['early'], phrase: 'an early check-in' },
+  { keywords: ['late checkout', 'late check-out', 'late check out'], phrase: 'a later checkout' },
+  { keywords: ['wifi', 'wi-fi', 'internet', 'connectivity'], phrase: 'strong wifi' },
+  { keywords: ['gym', 'workout', 'fitness'], phrase: 'gym access' },
+  { keywords: ['kids', 'children', 'family'], phrase: 'family-friendly arrangements' },
+  { keywords: ['surprise', 'romantic', 'special'], phrase: 'a few special touches' },
+  { keywords: ['presentation', 'meeting', 'client'], phrase: 'everything ready for your meeting' },
+  { keywords: ['spa', 'massage', 'relax'], phrase: 'time set aside to unwind' },
+];
+
+function extractAcknowledgement(guestText: string): string | null {
+  const lower = guestText.toLowerCase();
+  const hit = KEYWORD_ACKNOWLEDGEMENT.find(({ keywords }) => keywords.some((k) => lower.includes(k)));
+  return hit?.phrase ?? null;
+}
+
+/**
  * Deterministic, rule-based replies for the booking-time "what would make this journey
  * successful" conversation — no LLM, matching the rest of this prototype. `turn` is how many
  * guest messages have been sent so far in this chat: the first gets a category-tailored
- * follow-up question, every one after that gets a closing acknowledgement.
+ * follow-up question (specific to what the guest typed, when a recognisable keyword is
+ * present), every one after that gets a closing acknowledgement.
  */
-export function journeyGoalReply(turn: number, category: IntentCategory): string {
-  if (turn <= 1) return JOURNEY_GOAL_FOLLOWUP[category];
+export function journeyGoalReply(turn: number, category: IntentCategory, guestText?: string): string {
+  if (turn <= 1) {
+    const ack = guestText ? extractAcknowledgement(guestText) : null;
+    if (ack) return `Got it — I'll make sure you have ${ack} sorted. Anything else specific I should know, like timing or who else is involved?`;
+    return JOURNEY_GOAL_FOLLOWUP[category];
+  }
   return "Perfect, noted — we've got this. See you at check-in!";
 }

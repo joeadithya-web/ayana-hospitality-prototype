@@ -23,6 +23,7 @@ import { Profile } from './screens/Profile';
 import { AyanaMemoryScreen } from './screens/AyanaMemoryScreen';
 import { Notifications } from './screens/Notifications';
 import { Support } from './screens/Support';
+import { Documents } from './screens/Documents';
 
 function IndexRedirect() {
   const currentGuestId = useSimulationStore((s) => s.currentGuestId);
@@ -58,6 +59,7 @@ export function TravellerRouter() {
       <Route path="memory" element={<RequireAuth><AyanaMemoryScreen /></RequireAuth>} />
       <Route path="notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
       <Route path="support" element={<RequireAuth><Support /></RequireAuth>} />
+      <Route path="documents" element={<RequireAuth><Documents /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/traveller" replace />} />
     </Routes>
   );

@@ -6,7 +6,7 @@ import { formatINR } from '@ayana/shared-utils';
 import { useSimulationStore } from '@ayana/simulation-engine';
 
 const TIME_SLOTS = ['7:00 AM', '9:00 AM', '12:00 PM', '4:00 PM', '7:00 PM', '8:30 PM'];
-const KINDS: ServiceKind[] = ['restaurant', 'spa', 'transport', 'add_on'];
+const KINDS: ServiceKind[] = ['restaurant', 'spa', 'transport', 'add_on', 'celebration', 'experience'];
 
 /**
  * In-app service booking. Anything booked here posts to the same folio the kiosk and

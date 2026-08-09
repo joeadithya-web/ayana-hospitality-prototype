@@ -6,6 +6,7 @@ import type { CsiScore, PaymentMethod } from '@ayana/shared-types';
 import { Badge, Button, Card, MockTag, PageHeader } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useBooking, useHotel } from '../hooks';
+import { AnaIqMark } from '../components/AnaIqMark';
 
 const METHODS: { id: PaymentMethod; label: string }[] = [
   { id: 'upi', label: 'UPI' },
@@ -111,14 +112,34 @@ export function Checkout() {
               </section>
 
               <section>
-                <h2 className="mb-2 font-display text-base font-semibold text-ink-950">Feedback</h2>
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="font-display text-base font-semibold text-ink-950">Feedback</h2>
+                  <AnaIqMark />
+                </div>
                 {feedbackSent ? (
                   <Card className="text-center text-sm text-springs-600">Thank you for your feedback!</Card>
                 ) : (
                   <Card className="flex flex-col gap-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-ink-700/60">
-                      Customer Satisfaction Index — Scale 1 to 10
-                    </p>
+                    <div className="flex flex-col gap-2">
+                      <div className="max-w-[85%] rounded-xl bg-ink-900/5 px-3 py-2 text-sm text-ink-900">
+                        Customer Satisfaction Index — pick a score from 1 to 10 for this stay.
+                      </div>
+                      {csiScore !== null && (
+                        <>
+                          <div className="ml-auto max-w-[85%] rounded-xl bg-ink-900 px-3 py-2 text-sm text-cream-50">
+                            {csiScore}
+                          </div>
+                          <div className="max-w-[85%] rounded-xl bg-ink-900/5 px-3 py-2 text-sm text-ink-900">
+                            {csiScore === 10
+                              ? "Thank you — we're glad your stay was great!"
+                              : csiScore === 9
+                                ? 'Thanks and we value your experience but we are here to hear you. Tell us what are the improvements we can make to serve you better next time.'
+                                : 'Please tell us — what are the things that we need to improve to increase the score — we are happy to serve you better.'}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
                     <div className="flex flex-wrap justify-center gap-1.5">
                       {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as CsiScore[]).map((n) => (
                         <button
@@ -133,40 +154,14 @@ export function Checkout() {
                       ))}
                     </div>
 
-                    {csiScore === 10 && (
-                      <p className="text-center text-sm text-springs-600">Thank you — we're glad your stay was great!</p>
-                    )}
-
-                    {csiScore === 9 && (
-                      <>
-                        <p className="text-xs text-ink-700/70">
-                          Thanks and we value your experience but we are here to hear you. Tell us what are the improvements
-                          we can make to serve you better next time.
-                        </p>
-                        <textarea
-                          className="rounded-lg border border-ink-900/15 p-2.5 text-sm"
-                          placeholder="Tell us more (optional)…"
-                          rows={2}
-                          value={feedbackText}
-                          onChange={(e) => setFeedbackText(e.target.value)}
-                        />
-                      </>
-                    )}
-
-                    {csiScore !== null && csiScore <= 8 && (
-                      <>
-                        <p className="text-xs text-ink-700/70">
-                          Please tell us — what are the things that we need to improve to increase the score — we are happy
-                          to serve you better.
-                        </p>
-                        <textarea
-                          className="rounded-lg border border-ink-900/15 p-2.5 text-sm"
-                          placeholder="Tell us more (optional)…"
-                          rows={2}
-                          value={feedbackText}
-                          onChange={(e) => setFeedbackText(e.target.value)}
-                        />
-                      </>
+                    {csiScore !== null && csiScore <= 9 && (
+                      <textarea
+                        className="rounded-lg border border-ink-900/15 p-2.5 text-sm"
+                        placeholder="Tell AnA IQ more (optional)…"
+                        rows={2}
+                        value={feedbackText}
+                        onChange={(e) => setFeedbackText(e.target.value)}
+                      />
                     )}
 
                     <Button
@@ -185,6 +180,7 @@ export function Checkout() {
                     >
                       Submit Feedback
                     </Button>
+                    <MockTag />
                   </Card>
                 )}
               </section>

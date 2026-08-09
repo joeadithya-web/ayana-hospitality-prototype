@@ -2,7 +2,7 @@ import type { ConciergeRequestType } from './concierge';
 import type { InvoiceLineItemCategory } from './payment';
 
 /** Groups the bookable in-stay services shown in both the Traveller App and the Kiosk. */
-export type ServiceKind = 'restaurant' | 'spa' | 'transport' | 'add_on';
+export type ServiceKind = 'restaurant' | 'spa' | 'transport' | 'add_on' | 'celebration' | 'experience';
 
 /**
  * One bookable service. The same catalog drives the app and the kiosk so a spa slot

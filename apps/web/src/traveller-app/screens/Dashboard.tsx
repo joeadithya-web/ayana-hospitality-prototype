@@ -6,6 +6,7 @@ import { Avatar, Badge, Button, Card } from '@ayana/shared-ui';
 import { formatDate } from '@ayana/shared-utils';
 import { useCurrentGuest } from '../hooks';
 import { TravellerShell } from '../TravellerShell';
+import { AnaIqMark } from '../components/AnaIqMark';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -134,6 +135,7 @@ export function Dashboard() {
 function UpcomingStays({ bookings, hotelById }: { bookings: Booking[]; hotelById: Map<string, Hotel> }) {
   const navigate = useNavigate();
   const cancelBooking = useSimulationStore((s) => s.cancelBooking);
+  const conciergeRequests = useSimulationStore((s) => s.conciergeRequests);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
 
@@ -202,6 +204,9 @@ function UpcomingStays({ bookings, hotelById }: { bookings: Booking[]; hotelById
       >
         {bookings.map((b) => {
           const stayStarted = new Date(b.checkInDate) <= new Date() && b.status !== 'checked_in';
+          const readiness = conciergeRequests
+            .filter((r) => r.bookingId === b.id && r.status !== 'cancelled')
+            .slice(0, 3);
           return (
             <div key={b.id} className="w-full flex-none snap-center">
               <Card className="cursor-pointer" onClick={() => open(b)}>
@@ -214,6 +219,18 @@ function UpcomingStays({ bookings, hotelById }: { bookings: Booking[]; hotelById
                 >
                   {b.status === 'checked_in' ? 'In stay' : b.status === 'confirmed' ? 'Confirmed' : 'Awaiting payment'}
                 </Badge>
+
+                {b.status !== 'checked_in' && readiness.length > 0 && (
+                  <div className="mt-2.5 rounded-lg bg-ink-950/[0.03] p-2.5">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-ink-700/50">Readiness Brief</span>
+                      <AnaIqMark />
+                    </div>
+                    {readiness.map((r) => (
+                      <p key={r.id} className="text-xs text-ink-700/70">• {r.details}</p>
+                    ))}
+                  </div>
+                )}
 
                 {stayStarted && (
                   <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3">

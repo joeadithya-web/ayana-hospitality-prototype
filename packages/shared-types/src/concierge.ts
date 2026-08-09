@@ -9,7 +9,9 @@ export type ConciergeRequestType =
   | 'baggage_pickup'
   | 'baggage_delivery'
   | 'luggage_storage'
-  | 'vip_arrival_assistance';
+  | 'vip_arrival_assistance'
+  | 'celebration_arrangement'
+  | 'experience_booking';
 
 export type ConciergeRequestStatus =
   | 'requested'

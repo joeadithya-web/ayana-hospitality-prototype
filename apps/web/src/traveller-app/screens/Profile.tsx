@@ -13,6 +13,7 @@ export function Profile() {
 
   const links = [
     { label: 'AYANA Memory', icon: '🧠', to: '/traveller/memory' },
+    { label: 'Documents & Expenses', icon: '📁', to: '/traveller/documents' },
     { label: 'Notifications', icon: '🔔', to: '/traveller/notifications' },
     { label: 'Support', icon: '💬', to: '/traveller/support' },
   ];

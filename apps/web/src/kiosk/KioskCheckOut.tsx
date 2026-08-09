@@ -242,9 +242,30 @@ export function KioskCheckOut({ hotelId, onExit }: { hotelId: string; onExit: ()
             <p className="text-sm text-springs-400">Thank you for your feedback!</p>
           ) : (
             <div className="w-full rounded-xl2 border border-white/10 bg-white/5 px-5 py-4 text-left">
-              <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-cream-50/60">
-                Customer Satisfaction Index — Scale 1 to 10
+              <p className="mb-2 flex items-center justify-between text-xs font-medium uppercase tracking-wide text-cream-50/60">
+                <span>Feedback</span>
+                <span className="inline-flex items-center gap-1 text-gold-400">✦ AnA IQ</span>
               </p>
+              <div className="mb-2 flex flex-col gap-2">
+                <div className="max-w-[90%] rounded-xl bg-white/10 px-3 py-2 text-xs text-cream-50/80">
+                  Customer Satisfaction Index — pick a score from 1 to 10 for this stay.
+                </div>
+                {csiScore !== null && (
+                  <>
+                    <div className="ml-auto max-w-[90%] rounded-xl bg-gold-500/20 px-3 py-2 text-xs font-semibold text-gold-200">
+                      {csiScore}
+                    </div>
+                    <div className="max-w-[90%] rounded-xl bg-white/10 px-3 py-2 text-xs text-cream-50/80">
+                      {csiScore === 10
+                        ? "Thank you — we're glad your stay was great!"
+                        : csiScore === 9
+                          ? 'Thanks and we value your experience but we are here to hear you. Tell us what are the improvements we can make to serve you better next time.'
+                          : 'Please tell us — what are the things that we need to improve to increase the score — we are happy to serve you better.'}
+                    </div>
+                  </>
+                )}
+              </div>
+
               <div className="flex flex-wrap justify-center gap-1.5">
                 {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as CsiScore[]).map((n) => (
                   <button
@@ -259,25 +280,14 @@ export function KioskCheckOut({ hotelId, onExit }: { hotelId: string; onExit: ()
                 ))}
               </div>
 
-              {csiScore === 10 && (
-                <p className="mt-3 text-center text-sm text-springs-400">Thank you — we're glad your stay was great!</p>
-              )}
-
               {csiScore !== null && csiScore <= 9 && (
-                <>
-                  <p className="mt-3 text-xs text-cream-50/70">
-                    {csiScore === 9
-                      ? "Thanks and we value your experience but we are here to hear you. Tell us what are the improvements we can make to serve you better next time."
-                      : 'Please tell us — what are the things that we need to improve to increase the score — we are happy to serve you better.'}
-                  </p>
-                  <textarea
-                    className="mt-2 w-full rounded-lg border border-white/15 bg-white/5 p-2.5 text-sm text-cream-50"
-                    placeholder="Tell us more (optional)…"
-                    rows={2}
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                  />
-                </>
+                <textarea
+                  className="mt-2 w-full rounded-lg border border-white/15 bg-white/5 p-2.5 text-sm text-cream-50"
+                  placeholder="Tell AnA IQ more (optional)…"
+                  rows={2}
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                />
               )}
 
               {csiScore !== null && (

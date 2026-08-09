@@ -5,11 +5,22 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import { assessIntentMatch, autoConciergeSeedsForTemplate, categoryAvailability, INTENT_CATALOG, INTENT_CATEGORY_LABEL, intentTaskSeedsForTemplate, intentTemplateById } from '@ayana/ai-engine';
-import type { BedType, BookingIntent, IntentCategory, RoomCategory, RoomView } from '@ayana/shared-types';
+import type { AyanaMemory, BedType, BookingIntent, IntentCategory, RoomCategory, RoomView } from '@ayana/shared-types';
 import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
 import { useCurrentCorporate, useCurrentGuest, useHotel, useRoomsForHotelAndCategory } from '../hooks';
+import { AnaIqMark } from '../components/AnaIqMark';
 import { JourneyGoalChat } from '../components/JourneyGoalChat';
 import { useTripSearchStore } from '../tripSearchStore';
+
+/** A couple of the most tellable AYANA Memory preferences, for the "remembers you" banner — kept short and plain-language, never a full dump of the profile. */
+function memoryHighlights(memory: AyanaMemory): string[] {
+  const highlights: string[] = [];
+  if (memory.dietaryPreference !== 'no_preference') highlights.push(`${memory.dietaryPreference.replace('_', ' ')} meals`);
+  if (memory.preferredView) highlights.push(`a ${memory.preferredView.replace('_', ' ')} view`);
+  if (memory.pillowType !== 'no_preference') highlights.push(`${memory.pillowType} pillows`);
+  if (memory.airportPickupPreferred) highlights.push('airport pickup');
+  return highlights.slice(0, 2);
+}
 
 const INTENT_CATEGORIES = Array.from(new Set(INTENT_CATALOG.map((t) => t.category))) as IntentCategory[];
 
@@ -47,7 +58,10 @@ export function Booking() {
   const [primaryIntentId, setPrimaryIntentId] = useState<string | null>(null);
   const [secondaryIntentId, setSecondaryIntentId] = useState<string | null>(null);
   const [journeyGoal, setJourneyGoal] = useState('');
+  const [meetingTime, setMeetingTime] = useState('');
   const primaryIntentCategory = primaryIntentId ? intentTemplateById(primaryIntentId)?.category ?? null : null;
+  const [showRemembersYou, setShowRemembersYou] = useState(true);
+  const memoryHighlightList = guest && guest.isReturning ? memoryHighlights(guest.memory) : [];
 
   function toggleIntent(id: string) {
     if (primaryIntentId === id) {
@@ -149,7 +163,10 @@ export function Booking() {
       paymentTier: data.paymentTier as 100 | 50 | 25,
       corporateId: corporate?.id ?? null,
       intents,
-      journeyGoal: journeyGoal.trim() || null,
+      journeyGoal:
+        [journeyGoal.trim(), meetingTime.trim() ? `Meeting time: ${meetingTime.trim()}.` : '']
+          .filter(Boolean)
+          .join(' ') || null,
       intentTaskSeeds: primaryTemplate?.deepBuilt ? intentTaskSeedsForTemplate(primaryTemplate.id) : [],
       autoConciergeSeeds: primaryTemplate?.deepBuilt ? autoConciergeSeedsForTemplate(primaryTemplate.id) : [],
       intentMatch,
@@ -161,6 +178,30 @@ export function Booking() {
     <div className="min-h-screen bg-cream-50 pb-28">
       <div className="mx-auto max-w-md">
         <PageHeader title="Confirm Stay" subtitle={hotel.name} onBack={() => navigate(-1)} />
+
+        {showRemembersYou && memoryHighlightList.length > 0 && (
+          <div className="px-5 pb-4">
+            <Card className="border-gold-500/30 bg-gold-500/5">
+              <div className="mb-1.5 flex items-center justify-between">
+                <AnaIqMark />
+              </div>
+              <p className="text-sm text-ink-900">
+                Last time you preferred {memoryHighlightList.join(' and ')} — we'll carry that through again automatically.
+              </p>
+              <div className="mt-2 flex items-center gap-3">
+                <button className="text-xs font-medium text-gold-700 underline" onClick={() => setShowRemembersYou(false)}>
+                  Yes, same as last time
+                </button>
+                <button
+                  className="text-xs text-ink-700/50 underline"
+                  onClick={() => navigate('/traveller/memory')}
+                >
+                  Not quite — update AYANA Memory
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
 
         <form className="flex flex-col gap-4 px-5" onSubmit={handleSubmit(onSubmit)}>
           <Card>
@@ -240,6 +281,22 @@ export function Booking() {
                 </div>
               ))}
             </div>
+
+            {primaryIntentCategory === 'business' && (
+              <label className="mt-3 flex flex-col gap-1.5">
+                <span className="text-xs font-medium uppercase tracking-wide text-ink-700/60">
+                  Meeting Assistant — meeting time (optional)
+                </span>
+                <input
+                  type="text"
+                  placeholder="e.g. 3:00 PM"
+                  className="rounded-lg border border-ink-900/15 px-3 py-2.5 text-sm"
+                  value={meetingTime}
+                  onChange={(e) => setMeetingTime(e.target.value)}
+                />
+                <span className="text-[11px] text-ink-700/40">AnA IQ passes this to the front desk so the room is ready in time.</span>
+              </label>
+            )}
 
             {primaryIntentId && primaryIntentCategory && (
               <div className="mt-3">

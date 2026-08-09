@@ -6,6 +6,7 @@ import { formatDateTime } from '@ayana/shared-utils';
 import { PasswordGate } from './PasswordGate';
 import { DEMO_SCENARIOS, FAILURE_SCENARIOS } from './scenarios';
 import { applyScenarioSideEffect } from './scenarioActions';
+import { ANA_IQ_LIVE_FEATURES, ANA_IQ_PROPOSED_FEATURES } from './featureGuide';
 
 const SOURCE_LABEL: Record<string, string> = {
   traveller_app: 'Traveller',
@@ -124,6 +125,33 @@ function ControlCentrePanel() {
               <Card key={scenario.id} className="!bg-ink-900 text-cream-50">
                 <p className="text-sm font-medium">{scenario.label}</p>
                 <p className="mt-1 text-[11px] text-cream-50/50">{scenario.presenterNote}</p>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="font-display text-base font-semibold">AnA IQ Feature Guide</h2>
+            <span className="rounded-full bg-gold-500/10 px-2 py-0.5 text-[10px] font-medium text-gold-400">✦ Living reference</span>
+          </div>
+
+          <p className="mb-2 text-xs uppercase tracking-wide text-cream-50/40">Live Features</p>
+          <div className="mb-4 grid grid-cols-3 gap-3">
+            {ANA_IQ_LIVE_FEATURES.map((f) => (
+              <Card key={f.name} className="!bg-ink-900 text-cream-50">
+                <p className="text-sm font-medium">{f.name}</p>
+                <p className="mt-1 text-[11px] text-cream-50/50">{f.description}</p>
+              </Card>
+            ))}
+          </div>
+
+          <p className="mb-2 text-xs uppercase tracking-wide text-cream-50/40">Upcoming / Proposed — Real-Time Build</p>
+          <div className="grid grid-cols-3 gap-3">
+            {ANA_IQ_PROPOSED_FEATURES.map((f) => (
+              <Card key={f.name} className="border-dashed !bg-transparent text-cream-50/70">
+                <p className="text-sm font-medium text-cream-50/80">{f.name}</p>
+                <p className="mt-1 text-[11px] text-cream-50/40">{f.description}</p>
               </Card>
             ))}
           </div>

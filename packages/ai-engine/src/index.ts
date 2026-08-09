@@ -10,3 +10,5 @@ export * from './travelRecommendations';
 export * from './conciergeChat';
 export * from './intentEngine';
 export * from './feedbackEngine';
+export * from './anaIqSuggestions';
+export * from './weather';

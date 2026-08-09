@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { recommendServices } from '@ayana/ai-engine';
+import { buildStaySuggestions, getSimulatedWeather, recommendServices, WEATHER_ICON } from '@ayana/ai-engine';
 import type { PaymentMethod, ServiceKind } from '@ayana/shared-types';
 import { Badge, Button, Card, MockTag, PageHeader } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useBooking, useCurrentGuest, useHotel, useRoom } from '../hooks';
 import { AiConciergePanel } from '../components/AiConciergePanel';
+import { AnaIqMark } from '../components/AnaIqMark';
 import { ConciergeChat } from '../components/ConciergeChat';
 import { NextTripPanel } from '../components/NextTripPanel';
 import { ServiceBookingSheet } from '../components/ServiceBookingSheet';
@@ -39,13 +40,22 @@ export function Stay() {
   const guest = useCurrentGuest();
   const invoices = useSimulationStore((s) => s.invoices);
   const conciergeRequests = useSimulationStore((s) => s.conciergeRequests);
+  const intentTasks = useSimulationStore((s) => s.intentTasks);
   const payOutstanding = useSimulationStore((s) => s.payOutstanding);
   const requestHousekeeping = useSimulationStore((s) => s.requestHousekeeping);
+  const bookService = useSimulationStore((s) => s.bookService);
+  const updateMemory = useSimulationStore((s) => s.updateMemory);
 
   const [serviceSheet, setServiceSheet] = useState<{ open: boolean; kind?: ServiceKind }>({ open: false });
   const [payOpen, setPayOpen] = useState(false);
   const [method, setMethod] = useState<PaymentMethod>('upi');
   const [paidJustNow, setPaidJustNow] = useState(false);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
+  const [learnedPreferenceApplied, setLearnedPreferenceApplied] = useState(false);
+  const chatRef = useRef<HTMLDivElement>(null);
+  // Simulated only — no real in-room IoT connection, deliberately kept as local UI state rather
+  // than persisted engine data.
+  const [roomControls, setRoomControls] = useState({ lights: true, ac: true, curtains: false });
 
   const invoice = useMemo(() => invoices.find((i) => i.bookingId === bookingId), [invoices, bookingId]);
   const myRequests = useMemo(
@@ -56,9 +66,52 @@ export function Stay() {
     [conciergeRequests, bookingId],
   );
 
+  const suggestions = useMemo(
+    () =>
+      booking && guest
+        ? buildStaySuggestions({ booking, conciergeRequests, familyMembers: guest.familyMembers, memory: guest.memory }).filter(
+            (s) => !dismissedSuggestions.has(s.id),
+          )
+        : [],
+    [booking, guest, conciergeRequests, dismissedSuggestions],
+  );
+  // Only things AnA IQ has actually finished — never a to-do list, so nothing here ever
+  // reads as incomplete or graded.
+  const arrangedForTrip = useMemo(
+    () => intentTasks.filter((t) => t.bookingId === bookingId && t.status === 'done').map((t) => t.label),
+    [intentTasks, bookingId],
+  );
+
   // The room may legitimately not be allocated yet (e.g. an upgrade move is in progress),
   // so the screen must render without it rather than blanking out.
   if (!booking || !hotel || !guest) return null;
+
+  function acceptSuggestion(s: (typeof suggestions)[number]) {
+    if (!booking || !guest) return;
+    bookService({
+      bookingId: booking.id,
+      guestId: guest.id,
+      hotelId: booking.hotelId,
+      requestType: s.requestType,
+      details: s.details,
+      description: s.details,
+      amount: 0,
+      chargeCategory: 'add_on',
+    });
+    setDismissedSuggestions((prev) => new Set(prev).add(s.id));
+  }
+
+  const weather = getSimulatedWeather(hotel.city, new Date().toISOString());
+
+  // Learn My Preferences — deterministic frequency-based inference (not ML): a request type
+  // this guest has made 2+ times, across any of their stays, that isn't already saved.
+  const requestCounts = new Map<string, number>();
+  for (const r of conciergeRequests) {
+    if (r.guestId === guest.id) requestCounts.set(r.type, (requestCounts.get(r.type) ?? 0) + 1);
+  }
+  const learnablePreference = Array.from(requestCounts.entries()).find(
+    ([type, count]) => count >= 2 && !guest.memory.favouriteServices.includes(type),
+  );
 
   const lineItems = invoice?.lineItems ?? [
     { id: 'room', description: 'Room charges', category: 'room' as const, amount: booking.totalAmount, postedAt: booking.checkInDate },
@@ -110,6 +163,47 @@ export function Stay() {
               <span className="capitalize">{booking.roomCategory} · {nights} night{nights === 1 ? '' : 's'}</span>
             </div>
           </Card>
+
+          {/* Weather Intelligence — simulated, deterministic by city + date, no live API call. */}
+          <Card className="flex items-center gap-3">
+            <span className="text-2xl leading-none">{WEATHER_ICON[weather.condition]}</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium capitalize text-ink-900">{weather.condition} · {weather.tempC}°C</p>
+              <p className="text-xs text-ink-700/50">{weather.suggestion}</p>
+            </div>
+            <MockTag />
+          </Card>
+
+          {/* Room Controls — simulated toggle UI only, no real in-room hardware connection. */}
+          {room && (
+            <Card>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-medium text-ink-900">Room Controls</p>
+                <MockTag />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { key: 'lights' as const, label: 'Lights', icon: '💡' },
+                    { key: 'ac' as const, label: 'AC', icon: '❄️' },
+                    { key: 'curtains' as const, label: 'Curtains', icon: '🪟' },
+                  ]
+                ).map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => setRoomControls((prev) => ({ ...prev, [c.key]: !prev[c.key] }))}
+                    className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-xs font-medium ${
+                      roomControls[c.key] ? 'border-gold-500 bg-gold-500/10 text-gold-600' : 'border-ink-900/10 text-ink-700/50'
+                    }`}
+                  >
+                    <span className="text-lg">{c.icon}</span>
+                    {c.label}
+                    <span className="text-[10px]">{roomControls[c.key] ? 'On' : 'Off'}</span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* Live folio */}
           <section>
@@ -206,13 +300,92 @@ export function Stay() {
             </Button>
           </section>
 
-          <ConciergeChat
-            city={hotel.city}
-            memory={guest.memory}
-            outstanding={outstanding}
-            guestFirstName={guest.fullName.split(' ')[0] ?? 'there'}
-            onBookService={(kind) => setServiceSheet({ open: true, kind })}
-          />
+          {/* Proactive nudges — AnA IQ notices the moment rather than waiting to be asked.
+              Accepting books the same way a guest-initiated request would, so fulfilment is
+              identical and always attributable to staff, never silently automated. */}
+          {suggestions.length > 0 && (
+            <section className="flex flex-col gap-2">
+              {suggestions.map((s) => (
+                <Card key={s.id} className="border-gold-500/30 bg-gold-500/5">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <AnaIqMark />
+                  </div>
+                  <p className="text-sm text-ink-900">{s.text}</p>
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <Button size="sm" onClick={() => acceptSuggestion(s)}>
+                      {s.acceptLabel}
+                    </Button>
+                    <button
+                      className="text-xs text-ink-700/50 underline"
+                      onClick={() => setDismissedSuggestions((prev) => new Set(prev).add(s.id))}
+                    >
+                      Not now
+                    </button>
+                    <button
+                      className="ml-auto text-xs text-ink-700/40 underline"
+                      onClick={() => chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    >
+                      Not quite — tell AnA IQ
+                    </button>
+                  </div>
+                </Card>
+              ))}
+            </section>
+          )}
+
+          {/* Learn My Preferences — noticed a repeated request, offers to save it. Rule-based
+              (frequency count), honestly framed as such, never claimed as machine learning. */}
+          {learnablePreference && !learnedPreferenceApplied && (
+            <Card className="border-gold-500/30 bg-gold-500/5">
+              <div className="mb-1.5 flex items-center justify-between">
+                <AnaIqMark />
+              </div>
+              <p className="text-sm text-ink-900">
+                You've asked for {learnablePreference[0].replaceAll('_', ' ')} more than once — want AnA IQ to remember this
+                for future stays?
+              </p>
+              <div className="mt-2.5 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    updateMemory(guest.id, { favouriteServices: [...guest.memory.favouriteServices, learnablePreference[0]] });
+                    setLearnedPreferenceApplied(true);
+                  }}
+                >
+                  Yes, remember it
+                </Button>
+                <button className="text-xs text-ink-700/50 underline" onClick={() => setLearnedPreferenceApplied(true)}>
+                  Not now
+                </button>
+              </div>
+            </Card>
+          )}
+
+          {/* Plain, finished-only list — never a checklist or percentage, only what's actually
+              been arranged so far. */}
+          {arrangedForTrip.length > 0 && (
+            <section>
+              <h2 className="mb-2 font-display text-base font-semibold text-ink-950">Arranged For Your Trip</h2>
+              <Card className="flex flex-col gap-1.5">
+                {arrangedForTrip.map((label) => (
+                  <p key={label} className="flex items-start gap-2 text-sm text-ink-800">
+                    <span className="mt-0.5 text-springs-600">✓</span>
+                    {label}
+                  </p>
+                ))}
+              </Card>
+            </section>
+          )}
+
+          <div ref={chatRef}>
+            <ConciergeChat
+              city={hotel.city}
+              memory={guest.memory}
+              outstanding={outstanding}
+              guestFirstName={guest.fullName.split(' ')[0] ?? 'there'}
+              onBookService={(kind) => setServiceSheet({ open: true, kind })}
+            />
+          </div>
 
           {/* Suggested services */}
           <section>

@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { useSimulationStore } from '@ayana/simulation-engine';
+import { intentTemplateById } from '@ayana/ai-engine';
 import { Badge, Button, Card, PageHeader, ProgressSteps } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useBooking, useCurrentGuest, useHotel } from '../hooks';
 import { AiConciergePanel } from '../components/AiConciergePanel';
+import { AnaIqMark } from '../components/AnaIqMark';
 import { NextTripPanel } from '../components/NextTripPanel';
 import { IdentityVerificationSheet } from './IdentityVerificationSheet';
 
@@ -168,6 +170,25 @@ export function ReadyToRoom() {
                   Scan this QR at the hotel kiosk to check in and collect your key. Your room number is assigned then.
                 </p>
               </Card>
+
+              {(() => {
+                const primaryIntent = booking.intents.find((i) => i.role === 'primary');
+                const template = primaryIntent ? intentTemplateById(primaryIntent.templateId) : undefined;
+                if (!template && !booking.journeyGoal) return null;
+                return (
+                  <Card className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase tracking-wide text-ink-700/50">Ready for you</p>
+                      <AnaIqMark />
+                    </div>
+                    <p className="text-sm text-ink-900">
+                      {template
+                        ? `Welcome back, ${guest.fullName.split(' ')[0]} — everything's lined up for your ${template.label.toLowerCase()}.`
+                        : `Welcome back, ${guest.fullName.split(' ')[0]} — we've got your stay ready to go.`}
+                    </p>
+                  </Card>
+                );
+              })()}
 
               <Button variant="ghost" fullWidth onClick={() => navigate(`/traveller/manage/${booking.id}`)}>
                 ⚙️ Manage / Cancel Booking

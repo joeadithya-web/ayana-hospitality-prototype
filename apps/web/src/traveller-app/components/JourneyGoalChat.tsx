@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { journeyGoalReply } from '@ayana/ai-engine';
 import type { IntentCategory } from '@ayana/shared-types';
 import { Card, MockTag } from '@ayana/shared-ui';
+import { AnaIqMark } from './AnaIqMark';
 
 interface Message {
   from: 'guest' | 'ayana';
@@ -38,7 +39,7 @@ export function JourneyGoalChat({ category, onChange }: { category: IntentCatego
     setInput('');
     setThinking(true);
 
-    const reply = journeyGoalReply(guestTurns.current.length, category);
+    const reply = journeyGoalReply(guestTurns.current.length, category, trimmed);
     setTimeout(() => {
       setMessages((m) => [...m, { from: 'ayana', text: reply }]);
       setThinking(false);
@@ -47,9 +48,12 @@ export function JourneyGoalChat({ category, onChange }: { category: IntentCatego
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-xs font-medium uppercase tracking-wide text-ink-700/60">
-        What would make this journey successful?
-      </span>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-ink-700/60">
+          What would make this journey successful?
+        </span>
+        <AnaIqMark />
+      </div>
       <Card className="flex flex-col gap-3">
         <div ref={scrollRef} className="flex max-h-56 flex-col gap-2 overflow-y-auto">
           {messages.map((m, i) => (

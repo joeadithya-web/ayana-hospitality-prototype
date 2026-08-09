@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { answerConciergeMessage } from '@ayana/ai-engine';
 import type { AyanaMemory, HotelCity, ServiceKind } from '@ayana/shared-types';
 import { Button, Card, MockTag } from '@ayana/shared-ui';
+import { AnaIqMark } from './AnaIqMark';
 
 interface Message {
   from: 'guest' | 'concierge';
@@ -30,7 +31,7 @@ export function ConciergeChat({
   onBookService: (kind: ServiceKind) => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([
-    { from: 'concierge', text: `Hello ${guestFirstName}! I'm your AYANA concierge. Ask me about your bill, the spa, dining, transport, or what's worth seeing in ${city}.` },
+    { from: 'concierge', text: `Hi ${guestFirstName}, I'm AnA IQ. Ask me about your bill, the spa, dining, transport, or what's worth seeing in ${city}.` },
   ]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
@@ -57,7 +58,10 @@ export function ConciergeChat({
 
   return (
     <section>
-      <h2 className="mb-2 font-display text-base font-semibold text-ink-950">Ask the Concierge</h2>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-display text-base font-semibold text-ink-950">Ask the Concierge</h2>
+        <AnaIqMark />
+      </div>
       <Card className="flex flex-col gap-3">
         <div ref={scrollRef} className="flex max-h-64 flex-col gap-2 overflow-y-auto">
           {messages.map((m, i) => (

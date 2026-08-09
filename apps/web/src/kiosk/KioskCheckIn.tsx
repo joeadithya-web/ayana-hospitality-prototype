@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { evaluateRoomAllocation } from '@ayana/ai-engine';
+import { evaluateRoomAllocation, intentTemplateById } from '@ayana/ai-engine';
 import type { Booking, KioskFailureReason } from '@ayana/shared-types';
 import { Badge, Button } from '@ayana/shared-ui';
 import { formatDate } from '@ayana/shared-utils';
@@ -202,6 +202,14 @@ export function KioskCheckIn({ hotelId, onExit }: { hotelId: string; onExit: () 
           <span className="text-4xl">✅</span>
           <GuestIdentityHeader guest={activeGuest} />
           <p className="font-display text-lg font-semibold text-cream-50">Welcome, {activeGuest.fullName.split(' ')[0]}!</p>
+          {(() => {
+            const primaryIntent = activeBooking?.intents.find((i) => i.role === 'primary');
+            const template = primaryIntent ? intentTemplateById(primaryIntent.templateId) : undefined;
+            if (!template) return null;
+            return (
+              <p className="text-xs text-gold-300">✦ AnA IQ — everything's ready for your {template.label.toLowerCase()}.</p>
+            );
+          })()}
           {activeRoom && <RevealableRoom roomNumber={activeRoom.roomNumber} floor={activeRoom.floor} />}
           <p className="max-w-xs text-sm text-cream-50/70">Your mobile key is already active on your phone. Enjoy your stay!</p>
           <Button size="lg" onClick={() => setStep('upsell')}>

@@ -123,6 +123,70 @@ export const SERVICE_CATALOG: ServiceCatalogItem[] = [
     chargeCategory: 'add_on',
     requestType: 'special_request',
   },
+
+  // Celebrations — AnA IQ's Celebration Manager: birthdays, anniversaries, surprises.
+  {
+    id: 'svc_birthday_setup',
+    kind: 'celebration',
+    label: 'Birthday Room Setup',
+    description: 'Balloons, cake and a card waiting in the room',
+    price: 2200,
+    icon: '🎂',
+    chargeCategory: 'add_on',
+    requestType: 'celebration_arrangement',
+  },
+  {
+    id: 'svc_anniversary_setup',
+    kind: 'celebration',
+    label: 'Anniversary Decor',
+    description: 'Rose petals, candles and a bottle of wine',
+    price: 3500,
+    icon: '💐',
+    chargeCategory: 'add_on',
+    requestType: 'celebration_arrangement',
+  },
+  {
+    id: 'svc_surprise_arrangement',
+    kind: 'celebration',
+    label: 'Surprise Arrangement',
+    description: 'Tell us the occasion — AnA IQ coordinates the details with the team',
+    price: 0,
+    icon: '🎉',
+    chargeCategory: 'add_on',
+    requestType: 'celebration_arrangement',
+  },
+
+  // Experiences — bookable tours and activities around the property.
+  {
+    id: 'svc_city_tour',
+    kind: 'experience',
+    label: 'Guided City Tour (Half Day)',
+    description: 'Private guide, car included',
+    price: 4000,
+    icon: '🗺️',
+    chargeCategory: 'add_on',
+    requestType: 'experience_booking',
+  },
+  {
+    id: 'svc_adventure_trek',
+    kind: 'experience',
+    label: 'Adventure Trek',
+    description: 'Guided half-day trek nearby, gear provided',
+    price: 2800,
+    icon: '🥾',
+    chargeCategory: 'add_on',
+    requestType: 'experience_booking',
+  },
+  {
+    id: 'svc_cultural_excursion',
+    kind: 'experience',
+    label: 'Cultural Excursion',
+    description: 'Local heritage sites with a private guide',
+    price: 3200,
+    icon: '🏛️',
+    chargeCategory: 'add_on',
+    requestType: 'experience_booking',
+  },
 ];
 
 export const SERVICE_KIND_LABEL: Record<ServiceKind, string> = {
@@ -130,6 +194,8 @@ export const SERVICE_KIND_LABEL: Record<ServiceKind, string> = {
   spa: 'Spa & Wellness',
   transport: 'Transport',
   add_on: 'Room Add-ons',
+  celebration: 'Celebrations',
+  experience: 'Experiences',
 };
 
 export function servicesByKind(kind: ServiceKind): ServiceCatalogItem[] {
