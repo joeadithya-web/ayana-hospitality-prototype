@@ -82,7 +82,7 @@ export function KioskServices({ hotelId, onExit }: { hotelId: string; onExit: ()
               type: 'restaurant_booking',
               details: `Table for ${partySize} at ${time}`,
             });
-            setConfirmation(`Table for ${partySize} reserved at ${time}. Our AI Concierge has shared your dining preferences with the restaurant.`);
+            setConfirmation(`Table for ${partySize} reserved at ${time}. AnA IQ has shared your dining preferences with the restaurant.`);
             setStep('confirmed');
           }}
         />

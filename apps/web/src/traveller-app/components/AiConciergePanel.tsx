@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { recommendLocalDining, recommendSightseeing, recommendTransport } from '@ayana/ai-engine';
 import type { AyanaMemory, HotelCity } from '@ayana/shared-types';
-import { Badge, Card } from '@ayana/shared-ui';
+import { Card } from '@ayana/shared-ui';
+import { AnaIqMark } from './AnaIqMark';
 
 type Tab = 'sightseeing' | 'food' | 'travel';
 
@@ -33,9 +34,9 @@ export function AiConciergePanel({
 
   return (
     <section>
-      <div className="mb-2 flex items-center gap-2">
-        <h2 className="font-display text-base font-semibold text-ink-950">AI Concierge</h2>
-        <Badge tone="gold">Personalised</Badge>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-display text-base font-semibold text-ink-950">Local Recommendations</h2>
+        <AnaIqMark />
       </div>
       <p className="mb-2.5 text-xs text-ink-700/50">
         Curated for {city} using your AYANA Memory — dietary preferences, trip type and past stays.

@@ -209,8 +209,24 @@ function UpcomingStays({ bookings, hotelById }: { bookings: Booking[]; hotelById
             .slice(0, 3);
           return (
             <div key={b.id} className="w-full flex-none snap-center">
-              <Card className="cursor-pointer" onClick={() => open(b)}>
-                <p className="font-medium text-ink-900">{hotelById.get(b.hotelId)?.name}</p>
+              <Card className="relative cursor-pointer" onClick={() => open(b)}>
+                {/* The whole card is already tappable through to the Stay hub — this chip is
+                    just the visible cue that AnA IQ (chat, suggestions, room state) is waiting
+                    there, once the guest has actually checked in. Placed in its own corner so
+                    it never crowds the status badge below. */}
+                {b.status === 'checked_in' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/traveller/stay/${b.id}`);
+                    }}
+                    className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-ink-950 px-2.5 py-1 text-[11px] font-medium text-gold-400"
+                  >
+                    <span aria-hidden>✦</span> AnA IQ
+                  </button>
+                )}
+
+                <p className="font-medium text-ink-900 pr-24">{hotelById.get(b.hotelId)?.name}</p>
                 <p className="text-sm text-ink-700/60">
                   {formatDate(b.checkInDate)} — {formatDate(b.checkOutDate)}
                 </p>
