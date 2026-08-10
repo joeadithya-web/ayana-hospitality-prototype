@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import type { InvoiceLineItemCategory } from '@ayana/shared-types';
-import { Badge, Card, PageHeader } from '@ayana/shared-ui';
+import { AnaIqMark, Badge, Card, PageHeader } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useCurrentGuest } from '../hooks';
-import { AnaIqMark } from '../components/AnaIqMark';
 
 const CATEGORY_LABEL: Record<InvoiceLineItemCategory, string> = {
   room: 'Room',
@@ -20,6 +20,7 @@ const CATEGORY_LABEL: Record<InvoiceLineItemCategory, string> = {
  * so a guest doesn't have to dig through each individual booking to find them.
  */
 export function Documents() {
+  const navigate = useNavigate();
   const guest = useCurrentGuest();
   const bookings = useSimulationStore((s) => s.bookings);
   const hotels = useSimulationStore((s) => s.hotels);
@@ -56,7 +57,7 @@ export function Documents() {
   return (
     <div className="min-h-screen bg-cream-50 pb-10">
       <div className="mx-auto max-w-md">
-        <PageHeader title="Documents & Expenses" subtitle="Vouchers, keys and spend across your stays" />
+        <PageHeader title="Documents & Expenses" subtitle="Vouchers, keys and spend across your stays" onBack={() => navigate('/traveller/profile')} />
 
         <div className="flex flex-col gap-5 px-5">
           <section>

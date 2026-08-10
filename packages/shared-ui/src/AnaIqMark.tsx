@@ -1,7 +1,8 @@
 /**
  * The one consistent visual signature for AnA IQ — used everywhere it speaks or acts (chat
- * headers, suggestion cards, readiness briefs) so guests recognise the same presence across
- * every touchpoint, home to room and beyond.
+ * headers, suggestion cards, readiness briefs, recommendation panels, staff-facing insight
+ * panels) so the same presence is recognisable across every touchpoint, home to room and
+ * beyond, on both the guest and hotel-ops sides.
  */
 export function AnaIqMark({ className = '' }: { className?: string }) {
   return (

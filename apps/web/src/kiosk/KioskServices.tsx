@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSimulationStore } from '@ayana/simulation-engine';
-import { Badge, Button } from '@ayana/shared-ui';
+import { AnaIqMark, Badge, Button } from '@ayana/shared-ui';
 import { formatINR } from '@ayana/shared-utils';
 import { GuestIdentityHeader, ReservationPicker } from './kioskShared';
 
@@ -240,7 +240,7 @@ function SpaFlow({
           >
             <span>
               {t.label}
-              {isVip && t.id === 'deep_tissue' && <span className="ml-2 text-[10px] text-gold-300">AI Recommended for VIP</span>}
+              {isVip && t.id === 'deep_tissue' && <AnaIqMark className="ml-2 !bg-gold-500/10 !text-gold-300" />}
             </span>
             <span className="text-xs text-cream-50/50">{formatINR(t.price)}</span>
           </button>

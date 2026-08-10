@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import type { ConciergeRequestType } from '@ayana/shared-types';
 import { recommendConcierge, recommendDining, recommendTransport } from '@ayana/ai-engine';
-import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
+import { AnaIqMark, Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
 import { useBooking, useCurrentGuest, useHotel } from '../hooks';
 
 const REQUEST_TYPES: { type: ConciergeRequestType; label: string; icon: string }[] = [
@@ -62,7 +62,10 @@ export function Concierge() {
           </section>
 
           <section>
-            <h2 className="mb-2 font-display text-base font-semibold text-ink-950">AI Dining Suggestions</h2>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="font-display text-base font-semibold text-ink-950">Dining Suggestions</h2>
+              <AnaIqMark />
+            </div>
             <div className="flex flex-col gap-2">
               {dining.map((d) => (
                 <Card key={d.id}>

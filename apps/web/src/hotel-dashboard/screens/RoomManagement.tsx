@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import { generateOperationsAlerts } from '@ayana/ai-engine';
-import { Badge, Card } from '@ayana/shared-ui';
+import { AnaIqMark, Badge, Card } from '@ayana/shared-ui';
 import { useCurrentStaff, useHotelBookings, useHotelRooms } from '../hooks';
 import { useSelectedHotelId } from '../HotelContext';
 
@@ -73,7 +73,7 @@ export function RoomManagement() {
                 className={`flex flex-col gap-0.5 rounded-lg border px-2 py-1.5 text-[11px] ${
                   dragOverRoom === room.id ? 'border-gold-500 bg-gold-500/10' : 'border-ink-900/10 bg-white'
                 }`}
-                title={`AI score ${room.aiScore}`}
+                title={`AnA IQ score ${room.aiScore}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-ink-900">{room.roomNumber}</span>
@@ -88,7 +88,10 @@ export function RoomManagement() {
 
       <div className="flex flex-col gap-4">
         <Card>
-          <h2 className="mb-2 font-display text-base font-semibold text-ink-950">AI Operations Panel</h2>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-display text-base font-semibold text-ink-950">Operations Panel</h2>
+            <AnaIqMark />
+          </div>
           <div className="flex flex-col gap-2">
             {alerts.length === 0 && <p className="text-sm text-ink-700/50">No recommendations right now.</p>}
             {alerts.map((a) => (

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { journeyGoalReply } from '@ayana/ai-engine';
 import type { IntentCategory } from '@ayana/shared-types';
-import { Card, MockTag } from '@ayana/shared-ui';
-import { AnaIqMark } from './AnaIqMark';
+import { AnaIqMark, Card, MockTag } from '@ayana/shared-ui';
 
 interface Message {
   from: 'guest' | 'ayana';

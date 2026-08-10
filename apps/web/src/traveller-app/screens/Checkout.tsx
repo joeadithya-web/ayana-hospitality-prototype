@@ -3,10 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import { deriveStarRatingFromCsi } from '@ayana/ai-engine';
 import type { CsiScore, PaymentMethod } from '@ayana/shared-types';
-import { Badge, Button, Card, MockTag, PageHeader } from '@ayana/shared-ui';
+import { AnaIqMark, Badge, Button, Card, MockTag, PageHeader } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useBooking, useHotel } from '../hooks';
-import { AnaIqMark } from '../components/AnaIqMark';
 
 const METHODS: { id: PaymentMethod; label: string }[] = [
   { id: 'upi', label: 'UPI' },
@@ -187,6 +186,9 @@ export function Checkout() {
 
               <Button variant="secondary" fullWidth onClick={() => navigate(`/traveller/hotel/${hotel.id}`)}>
                 Rebook {hotel.name}
+              </Button>
+              <Button variant="ghost" fullWidth onClick={() => navigate('/traveller/dashboard')}>
+                🏠 Back to Home
               </Button>
             </>
           )}

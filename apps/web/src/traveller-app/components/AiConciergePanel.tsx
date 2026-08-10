@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { recommendLocalDining, recommendSightseeing, recommendTransport } from '@ayana/ai-engine';
 import type { AyanaMemory, HotelCity } from '@ayana/shared-types';
-import { Card } from '@ayana/shared-ui';
-import { AnaIqMark } from './AnaIqMark';
+import { AnaIqMark, Card } from '@ayana/shared-ui';
 
 type Tab = 'sightseeing' | 'food' | 'travel';
 

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import { categoryAvailability, scoreCategoriesForGuest, type CategoryFit, type RoomVariant } from '@ayana/ai-engine';
 import type { RoomCategory } from '@ayana/shared-types';
-import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
+import { AnaIqMark, Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
 import { useCurrentGuest, useHotel, useRoomsForHotel } from '../hooks';
 import { TripCriteriaBar } from '../components/TripCriteriaBar';
 import { useTripSearchStore } from '../tripSearchStore';
@@ -90,7 +90,7 @@ export function RoomSelection() {
               const blocked = blockerFor(best);
               return (
                 <>
-                  <Badge tone="gold">AI Recommended</Badge>
+                  <AnaIqMark />
                   <Card
                     className={`mt-2 ${blocked ? 'opacity-55' : 'cursor-pointer'} ${
                       chosen?.fit.category === best.category ? 'ring-2 ring-gold-500' : ''

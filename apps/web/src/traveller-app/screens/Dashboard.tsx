@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import type { Booking, Hotel } from '@ayana/shared-types';
-import { Avatar, Badge, Button, Card } from '@ayana/shared-ui';
+import { AnaIqMark, Avatar, Badge, Button, Card } from '@ayana/shared-ui';
 import { formatDate } from '@ayana/shared-utils';
 import { useCurrentGuest } from '../hooks';
 import { TravellerShell } from '../TravellerShell';
-import { AnaIqMark } from '../components/AnaIqMark';
 
 export function Dashboard() {
   const navigate = useNavigate();

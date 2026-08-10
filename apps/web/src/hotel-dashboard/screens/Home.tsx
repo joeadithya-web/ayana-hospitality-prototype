@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import { generateOperationsAlerts } from '@ayana/ai-engine';
-import { Badge, Card } from '@ayana/shared-ui';
+import { AnaIqMark, Badge, Card } from '@ayana/shared-ui';
 import { formatINR } from '@ayana/shared-utils';
 import { useHotelBookings, useHotelConciergeRequests, useHotelRooms } from '../hooks';
 import { useSelectedHotelId } from '../HotelContext';
@@ -65,7 +65,10 @@ export function Home() {
       </div>
 
       <section>
-        <h2 className="mb-2 font-display text-base font-semibold text-ink-950">AI Alerts</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="font-display text-base font-semibold text-ink-950">Alerts</h2>
+          <AnaIqMark />
+        </div>
         {alerts.length === 0 ? (
           <Card className="text-sm text-ink-700/50">No active alerts.</Card>
         ) : (

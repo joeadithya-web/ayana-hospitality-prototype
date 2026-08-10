@@ -9,3 +9,4 @@ export * from './Sheet';
 export * from './Avatar';
 export * from './MockTag';
 export * from './EmptyState';
+export * from './AnaIqMark';

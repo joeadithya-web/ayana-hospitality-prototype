@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { answerConciergeMessage } from '@ayana/ai-engine';
 import type { AyanaMemory, HotelCity, ServiceKind } from '@ayana/shared-types';
-import { Button, Card, MockTag } from '@ayana/shared-ui';
-import { AnaIqMark } from './AnaIqMark';
+import { AnaIqMark, Button, Card, MockTag } from '@ayana/shared-ui';
 
 interface Message {
   from: 'guest' | 'concierge';

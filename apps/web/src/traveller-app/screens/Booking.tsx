@@ -6,9 +6,8 @@ import { z } from 'zod';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import { assessIntentMatch, autoConciergeSeedsForTemplate, categoryAvailability, INTENT_CATALOG, INTENT_CATEGORY_LABEL, intentTaskSeedsForTemplate, intentTemplateById } from '@ayana/ai-engine';
 import type { AyanaMemory, BedType, BookingIntent, IntentCategory, RoomCategory, RoomView } from '@ayana/shared-types';
-import { Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
+import { AnaIqMark, Badge, Button, Card, PageHeader } from '@ayana/shared-ui';
 import { useCurrentCorporate, useCurrentGuest, useHotel, useRoomsForHotelAndCategory } from '../hooks';
-import { AnaIqMark } from '../components/AnaIqMark';
 import { JourneyGoalChat } from '../components/JourneyGoalChat';
 import { useTripSearchStore } from '../tripSearchStore';
 

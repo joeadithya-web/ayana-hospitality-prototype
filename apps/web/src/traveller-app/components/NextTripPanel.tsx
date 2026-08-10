@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { hotelsInCity, recommendNextTrips } from '@ayana/ai-engine';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import type { AyanaMemory, HotelCity } from '@ayana/shared-types';
-import { Badge, Card } from '@ayana/shared-ui';
+import { AnaIqMark, Card } from '@ayana/shared-ui';
 import { formatINR } from '@ayana/shared-utils';
 
 /**
@@ -17,9 +17,9 @@ export function NextTripPanel({ city, memory }: { city: HotelCity; memory: Ayana
 
   return (
     <section>
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-2 flex items-center justify-between">
         <h2 className="font-display text-base font-semibold text-ink-950">Where Next?</h2>
-        <Badge tone="gold">AI Suggested</Badge>
+        <AnaIqMark />
       </div>
       <p className="mb-2.5 text-xs text-ink-700/50">
         Popular onward journeys from {city}, picked for how you travel.

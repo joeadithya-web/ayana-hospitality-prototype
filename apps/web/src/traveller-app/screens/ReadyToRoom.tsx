@@ -3,11 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { useSimulationStore } from '@ayana/simulation-engine';
 import { intentTemplateById } from '@ayana/ai-engine';
-import { Badge, Button, Card, PageHeader, ProgressSteps } from '@ayana/shared-ui';
+import { AnaIqMark, Badge, Button, Card, PageHeader, ProgressSteps } from '@ayana/shared-ui';
 import { formatDate, formatINR } from '@ayana/shared-utils';
 import { useBooking, useCurrentGuest, useHotel } from '../hooks';
 import { AiConciergePanel } from '../components/AiConciergePanel';
-import { AnaIqMark } from '../components/AnaIqMark';
 import { NextTripPanel } from '../components/NextTripPanel';
 import { IdentityVerificationSheet } from './IdentityVerificationSheet';
 
